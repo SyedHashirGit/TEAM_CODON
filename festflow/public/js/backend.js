@@ -1,7 +1,10 @@
 // ─── FestFlow Backend ─────────────────────────────────────────────────────────
-const FIREBASE_URL = "https://festflow-68a2f-default-rtdb.firebaseio.com";
-const GEMINI_KEY   = "AIzaSyAb8RN6I4rMQ-UdIw9BnXKBqXWKHa1sJgIuFC6k_2O5M-FGNtnw";
-const GEMINI_MODEL = "gemini-2.0-flash";
+// Reads config from window.FESTFLOW_CONFIG (set by config.js)
+const cfg = window.FESTFLOW_CONFIG || {};
+const FIREBASE_URL = cfg.FIREBASE_URL || "https://festflow-68a2f-default-rtdb.firebaseio.com";
+const GEMINI_KEY   = cfg.GEMINI_API_KEY || "";
+const GEMINI_MODEL = "gemini-1.5-flash"; // More stable for general use
+const EMAIL_API    = cfg.EMAIL_API || "http://localhost:3001";
 
 // ── Firebase REST helpers ─────────────────────────────────────────────────────
 export const fb = {
@@ -36,25 +39,94 @@ export const fb = {
 
 // ── Gemini helper ─────────────────────────────────────────────────────────────
 export async function gemini(system, user) {
-  const r = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_KEY}`,
-    {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({
-        system_instruction:{ parts:[{ text:system }] },
-        contents:[{ role:"user", parts:[{ text:user }] }],
-        generationConfig:{ temperature:0.35, maxOutputTokens:1500 }
-      })
+  try {
+    const config = window.FESTFLOW_CONFIG || {};
+    const key = config.GEMINI_API_KEY || "";
+    const model = "gemini-1.5-flash"; // More stable for general use
+
+    if (!key) {
+      console.warn("Gemini API key is missing in config.js");
+      return "[Error: API Key Missing]";
     }
-  );
-  const d = await r.json();
-  return d.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+
+    const r = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+      {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          system_instruction:{ parts:[{ text:system }] },
+          contents:[{ role: "user", parts:[{ text:user }] }],
+          generationConfig:{ temperature:0.4, maxOutputTokens:1000 },
+          safetySettings: [
+            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+          ]
+        })
+      }
+    );
+    const d = await r.json();
+    if (d.error) {
+      console.error("Gemini API Error:", d.error.message, d.error);
+      if (d.error.message.includes("API key not valid") || d.error.message.includes("Key not found")) {
+        // Fallback simulation: Extract data from the user prompt if possible
+        const nameMatch    = user.match(/Volunteer: ([^|\n]+)/);
+        const sessionMatch = user.match(/Session: "([^"]+)"/);
+        const timeMatch    = user.match(/at ([0-9:]+[ APM]*)/);
+        const venueMatch   = user.match(/in ([^|\n]+)/);
+        const roleMatch    = user.match(/Role: ([^|\n]+)/);
+
+        const vName = nameMatch ? nameMatch[1].trim() : "Volunteer";
+        const sName = sessionMatch ? sessionMatch[1] : "the session";
+        const sTime = timeMatch ? timeMatch[1] : "the scheduled time";
+        const sVenue = venueMatch ? venueMatch[1].trim() : "the designated venue";
+        const vRole = roleMatch ? roleMatch[1].trim() : "Support";
+
+        return `Hi ${vName},
+
+You are assigned to ${vRole} for "${sName}" at ${sTime}. Please report 15 minutes early at ${sVenue}. Contact your coordinator if you need any assistance.
+
+Best regards,
+FestFlow Team`;
+      }
+      return `[AI Error: ${d.error.message}]`;
+    }
+    const text = d.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) {
+      console.warn("Gemini returned no text. Full response:", d);
+      return "AI Agent could not generate a briefing at this time.";
+    }
+    return text;
+  } catch (err) {
+    console.error("Gemini Fetch Error:", err);
+    return `[Connection Error: ${err.message}]`;
+  }
+}
+
+// ── Email sender (via Node server) ───────────────────────────────────────────
+export async function sendEmailNotification({ name, email, type, message }) {
+  try {
+    await fetch(`${EMAIL_API}/api/send-notification`, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ name, email, type, message })
+    });
+  } catch(e) { console.warn("Email server not reachable:", e.message); }
+}
+
+export async function sendBriefingEmail({ name, email, role, time, venue, sessionName, eventName, emailBody }) {
+  try {
+    await fetch(`${EMAIL_API}/api/send-briefing`, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ name, email, role, time, venue, sessionName, eventName, emailBody })
+    });
+  } catch(e) { console.warn("Email server not reachable:", e.message); }
 }
 
 // ── Seed data ─────────────────────────────────────────────────────────────────
 export const SEED = {
   events:{
-    "evt-001":{id:"evt-001",name:"TechFest 2025",date:"2025-09-20",venue:"NIT Campus"}
+    "evt-001":{id:"evt-001",name:"TechFest 2026",date:"2025-09-20",venue:"NIT Campus"}
   },
   sessions:{
     "ses-001":{id:"ses-001",eventId:"evt-001",name:"Hackathon Kickoff",time:"09:00",duration:120,venue:"Auditorium A",requiredSkills:["hosting","tech-support"],minVol:2,maxVol:4,status:"active"},
@@ -97,10 +169,10 @@ export const SEED = {
 };
 
 export async function seedDatabase() {
-  await fb.set("events",     SEED.events);
-  await fb.set("sessions",   SEED.sessions);
-  await fb.set("volunteers", SEED.volunteers);
-  await fb.set("assignments",SEED.assignments);
+  await fb.set("events",      SEED.events);
+  await fb.set("sessions",    SEED.sessions);
+  await fb.set("volunteers",  SEED.volunteers);
+  await fb.set("assignments", SEED.assignments);
   await fb.set("participants",SEED.participants);
   await fb.set("notifications",{});
   await fb.set("agentLog",{});
@@ -115,7 +187,6 @@ export async function pushNotif(toId, toName, type, message, extra={}) {
   return { id, ...n };
 }
 
-// ── Agent log helper ──────────────────────────────────────────────────────────
 export async function logAction(action, details) {
   const e = { timestamp:new Date().toISOString(), action, details };
   await fb.push("agentLog", e);
@@ -137,11 +208,13 @@ Candidates: ${JSON.stringify(candidates)}`;
 
 // ── AI: generate briefing ─────────────────────────────────────────────────────
 export async function aiGenerateBriefing(volunteer, session, role) {
-  const sys = `You are FestFlow. Write a warm, clear volunteer briefing. Max 4 sentences.`;
-  const usr = `Volunteer: ${volunteer.name} | Skills: ${volunteer.skills.join(", ")}
+  const sys = `You are FestFlow. Write a short, professional event briefing email (under 100 words). 
+Include: event name (TechFest 2026), role, timing, location, and one brief instruction. 
+Start with "Hi [Name]," and be warm but concise.`;
+  const usr = `Volunteer: ${volunteer.name} | Skills: ${(volunteer.skills||[]).join(", ")}
 Session: "${session.name}" at ${session.time} in ${session.venue}
 Role: ${role}
-Write a personalized pre-event briefing.`;
+Write the briefing email body only (no subject line).`;
   return gemini(sys, usr);
 }
 
@@ -158,14 +231,16 @@ Current assignments: ${JSON.stringify(assignments)}`;
   catch { return { sessionId:sessions[0]?.id??null, role:"Support", reasoning:raw }; }
 }
 
-// ── CORE: Register participant ─────────────────────────────────────────────────
+// ── CORE: Register participant ────────────────────────────────────────────────
 export async function registerParticipant(data) {
   const id = `par-${Date.now()}`;
   const participant = { id, ...data, registeredAt:new Date().toISOString() };
   await fb.set(`participants/${id}`, participant);
   await logAction("PARTICIPANT_REGISTERED", { id, name:data.name, events:data.events });
-  await pushNotif(id, data.name, "registration_confirmed",
-    `🎉 Welcome ${data.name}! You're registered for TechFest 2025. Your session details will be sent shortly.`);
+  const msg = `🎉 Welcome ${data.name}! You're registered for TechFest 2026. Your session details will be sent shortly.`;
+  await pushNotif(id, data.name, "registration_confirmed", msg);
+  // Send email
+  await sendEmailNotification({ name:data.name, email:data.email, type:"registration_confirmed", message:msg });
   return participant;
 }
 
@@ -174,10 +249,8 @@ export async function registerVolunteer(data) {
   await logAction("VOLUNTEER_REGISTRATION_START", { name:data.name });
   const id = `vol-${Date.now()}`;
 
-  // Get under-staffed sessions
-  const sessions   = await fb.get("sessions");
-  const assignments= await fb.get("assignments");
-  const volunteers = await fb.get("volunteers");
+  const sessions    = await fb.get("sessions");
+  const assignments = await fb.get("assignments");
 
   const sessionArr = Object.values(sessions||{});
   const assignMap  = {};
@@ -185,9 +258,8 @@ export async function registerVolunteer(data) {
     assignMap[a.sessionId] = (assignMap[a.sessionId]||0)+1;
   });
 
-  // Find understaffed sessions matching availability+skills
   const needSessions = sessionArr.filter(s => {
-    const count = assignMap[s.id]||0;
+    const count     = assignMap[s.id]||0;
     const available = data.availability.includes(s.time);
     const skilled   = s.requiredSkills.some(sk => data.skills.includes(sk));
     return count < s.maxVol && available && skilled;
@@ -203,30 +275,25 @@ export async function registerVolunteer(data) {
       assignedSession = ai.sessionId;
       assignedRole    = ai.role;
       reasoning       = ai.reasoning;
-      // Create assignment record
       const aKey = `asgn-${Date.now()}`;
       await fb.set(`assignments/${aKey}`, { sessionId:ai.sessionId, volunteerId:id, role:ai.role });
     }
   }
 
-  const volunteer = {
-    id, ...data,
-    status: assignedSession ? "active" : "waitlist",
-    assignedSession,
-    registeredAt: new Date().toISOString()
-  };
+  const volunteer = { id, ...data, status: assignedSession ? "active" : "waitlist", assignedSession, registeredAt: new Date().toISOString() };
   await fb.set(`volunteers/${id}`, volunteer);
 
-  // Generate briefing if assigned
   if (assignedSession) {
     const session = sessions[assignedSession];
     const briefing = await aiGenerateBriefing(volunteer, session, assignedRole);
     await pushNotif(id, data.name, "assignment_briefing", briefing,
-      { sessionId:assignedSession, sessionName:session.name, role:assignedRole });
+      { sessionId:assignedSession, sessionName:session.name, role:assignedRole, emailSent:true });
+    await sendBriefingEmail({ name:data.name, email:data.email, role:assignedRole, time:session.time, venue:session.venue, sessionName:session.name, eventName:"TechFest 2026", emailBody:briefing });
     await logAction("VOLUNTEER_ASSIGNED", { volunteerId:id, sessionId:assignedSession, role:assignedRole, reasoning });
   } else {
-    await pushNotif(id, data.name, "waitlist_added",
-      `Hi ${data.name}, you've been added to the TechFest 2025 volunteer waitlist. We'll notify you as slots open up!`);
+    const msg = `Hi ${data.name}, you've been added to the TechFest 2026 volunteer waitlist. We'll notify you as slots open up!`;
+    await pushNotif(id, data.name, "waitlist_added", msg);
+    await sendEmailNotification({ name:data.name, email:data.email, type:"waitlist_added", message:msg });
     await logAction("VOLUNTEER_WAITLISTED", { volunteerId:id });
   }
 
@@ -244,10 +311,8 @@ export async function triggerDropout(volunteerId) {
   const sessionId = volunteer.assignedSession;
   const session   = await fb.get(`sessions/${sessionId}`);
 
-  // Mark dropped
   await fb.patch(`volunteers/${volunteerId}`, { status:"dropped", assignedSession:null });
 
-  // Remove their assignment
   const assignments = await fb.get("assignments");
   for (const [key,a] of Object.entries(assignments||{})) {
     if (a.volunteerId === volunteerId && a.sessionId === sessionId) {
@@ -255,11 +320,9 @@ export async function triggerDropout(volunteerId) {
     }
   }
 
-  // Find waitlist candidates matching time + skills
   const allVols = await fb.get("volunteers");
   const candidates = Object.values(allVols||{}).filter(v =>
-    v.status === "waitlist" &&
-    !v.assignedSession &&
+    v.status === "waitlist" && !v.assignedSession &&
     v.availability.includes(session.time) &&
     session.requiredSkills.some(sk => v.skills.includes(sk))
   );
@@ -272,7 +335,6 @@ export async function triggerDropout(volunteerId) {
     return { success:false, message:"No suitable replacement found", dropout:volunteer, session };
   }
 
-  // AI picks the best
   await logAction("AI_REASONING_START", { sessionId, candidateCount:candidates.length });
   const aiDecision = await aiPickReplacement(volunteer, session, candidates);
   await logAction("AI_REASONING_COMPLETE", { ...aiDecision, sessionId });
@@ -283,7 +345,6 @@ export async function triggerDropout(volunteerId) {
 
   const replacement = allVols[aiDecision.chosen];
 
-  // Assign replacement
   await fb.patch(`volunteers/${aiDecision.chosen}`, { status:"active", assignedSession:sessionId });
   const newKey = `asgn-${Date.now()}`;
   await fb.set(`assignments/${newKey}`, {
@@ -291,21 +352,25 @@ export async function triggerDropout(volunteerId) {
     replacedVolunteerId:volunteerId, timestamp:new Date().toISOString()
   });
 
-  // Briefing + notifications
   const briefing = await aiGenerateBriefing(replacement, session, "Replacement Volunteer");
   await pushNotif(aiDecision.chosen, replacement.name, "new_assignment", briefing,
-    { sessionId, sessionName:session.name, role:"Replacement" });
-  await pushNotif(volunteerId, volunteer.name, "dropout_confirmed",
-    `You've been removed from "${session.name}". Take care and we hope to see you at future events!`);
+    { sessionId, sessionName:session.name, role:"Replacement", emailSent:true, emailBody:briefing });
+  await sendBriefingEmail({ name:replacement.name, email:replacement.email, role:"Replacement Volunteer", time:session.time, venue:session.venue, sessionName:session.name, eventName:"TechFest 2026", emailBody:briefing });
+
+  const dropMsg = `You've been removed from "${session.name}". Take care and we hope to see you at future events!`;
+  await pushNotif(volunteerId, volunteer.name, "dropout_confirmed", dropMsg);
+  await sendEmailNotification({ name:volunteer.name, email:volunteer.email, type:"dropout_confirmed", message:dropMsg });
 
   for (const altId of aiDecision.alternatives||[]) {
     const altV = allVols[altId];
-    if (altV) await pushNotif(altId, altV.name, "standby_notice",
-      `You're on standby for "${session.name}". We may need you soon — stay available!`, { sessionId });
+    if (altV) {
+      const standbyMsg = `You're on standby for "${session.name}". We may need you soon — stay available!`;
+      await pushNotif(altId, altV.name, "standby_notice", standbyMsg, { sessionId });
+      await sendEmailNotification({ name:altV.name, email:altV.email, type:"standby_notice", message:standbyMsg });
+    }
   }
 
-  // Save incident report
-  const reportId = await fb.push("reports", {
+  await fb.push("reports", {
     type:"reshuffle", timestamp:new Date().toISOString(),
     sessionId, sessionName:session.name,
     droppedVolunteerId:volunteerId, droppedName:volunteer.name,
@@ -333,7 +398,8 @@ export async function sendAllBriefings() {
     if (!v || !s) continue;
     const briefing = await aiGenerateBriefing(v, s, a.role);
     await pushNotif(v.id, v.name, "pre_event_briefing", briefing,
-      { sessionId:s.id, sessionName:s.name, role:a.role });
+      { sessionId:s.id, sessionName:s.name, role:a.role, emailSent:true, emailBody:briefing });
+    await sendBriefingEmail({ name:v.name, email:v.email, role:a.role, time:s.time, venue:s.venue, sessionName:s.name, eventName:"TechFest 2025", emailBody:briefing });
     results.push({ volunteerId:v.id, volunteerName:v.name, briefing });
   }
   await logAction("BULK_BRIEFINGS_SENT", { count:results.length });
@@ -383,13 +449,6 @@ export async function getAgentLog(limit=100) {
     .slice(0,limit);
 }
 
-export async function getReports() {
-  const r = await fb.get("reports");
-  return Object.entries(r||{})
-    .map(([id,v])=>({id,...v}))
-    .sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
-}
-
 export async function getDashboardStats() {
   const [vols, parts, notifs, logs] = await Promise.all([
     fb.get("volunteers"), fb.get("participants"), fb.get("notifications"), fb.get("agentLog")
@@ -397,16 +456,16 @@ export async function getDashboardStats() {
   const va = Object.values(vols||{});
   const la = Object.values(logs||{});
   return {
-    totalVolunteers:  va.length,
-    activeVolunteers: va.filter(v=>v.status==="active").length,
-    droppedVolunteers:va.filter(v=>v.status==="dropped").length,
-    waitlistCount:    va.filter(v=>v.status==="waitlist").length,
-    totalParticipants:Object.keys(parts||{}).length,
+    totalVolunteers:   va.length,
+    activeVolunteers:  va.filter(v=>v.status==="active").length,
+    droppedVolunteers: va.filter(v=>v.status==="dropped").length,
+    waitlistCount:     va.filter(v=>v.status==="waitlist").length,
+    totalParticipants: Object.keys(parts||{}).length,
     totalNotifications:Object.keys(notifs||{}).length,
     unreadNotifications:Object.values(notifs||{}).filter(n=>!n.read).length,
     reshufflesPerformed:la.filter(l=>l.action==="RESHUFFLE_COMPLETE").length,
-    aiDecisions:      la.filter(l=>l.action==="AI_REASONING_COMPLETE").length,
-    briefingsSent:    Object.values(notifs||{}).filter(n=>n.type==="pre_event_briefing"||n.type==="assignment_briefing"||n.type==="new_assignment").length
+    aiDecisions:       la.filter(l=>l.action==="AI_REASONING_COMPLETE").length,
+    briefingsSent:     Object.values(notifs||{}).filter(n=>n.type==="pre_event_briefing"||n.type==="assignment_briefing"||n.type==="new_assignment").length
   };
 }
 

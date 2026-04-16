@@ -1,0 +1,50 @@
+/* ── Auth Modal ── */
+.auth-overlay {
+  position:fixed; inset:0; z-index:200;
+  background:rgba(8,12,20,0.95); backdrop-filter:blur(16px);
+  display:flex; align-items:center; justify-content:center;
+}
+.auth-modal {
+  background:var(--bg2); border:1px solid var(--border);
+  border-radius:20px; padding:2.5rem; width:100%; max-width:400px;
+  animation:fadeIn .3s ease;
+}
+.auth-logo {
+  font-family:'Syne',sans-serif; font-weight:800; font-size:1.5rem;
+  color:#fff; display:flex; align-items:center; gap:.5rem;
+  margin-bottom:1.5rem;
+}
+.auth-logo span { color:var(--accent2); }
+.auth-modal h2 { font-size:1.3rem; color:#fff; margin-bottom:.3rem; }
+.auth-modal p  { color:var(--text2); font-size:.88rem; }
+.auth-error {
+  margin-top:.75rem; padding:.6rem 1rem; border-radius:8px;
+  background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.2);
+  color:var(--red); font-size:.83rem;
+}
+
+/* ── Modal Overlay ── */
+.modal-overlay {
+  position:fixed; inset:0; z-index:300;
+  background:rgba(8,12,20,0.85); backdrop-filter:blur(8px);
+  display:flex; align-items:center; justify-content:center;
+  padding:1rem;
+}
+.modal-box {
+  background:var(--bg2); border:1px solid var(--border);
+  border-radius:16px; width:100%; max-width:560px;
+  max-height:90vh; overflow-y:auto;
+  animation:fadeIn .25s ease;
+}
+.modal-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:1.2rem 1.5rem; border-bottom:1px solid var(--border);
+  position:sticky; top:0; background:var(--bg2); z-index:1;
+}
+.modal-header h3 { font-size:1.1rem; color:#fff; }
+.modal-close {
+  background:none; border:none; color:var(--text2);
+  font-size:1.1rem; cursor:pointer; padding:.2rem .4rem;
+  border-radius:4px; transition:color .2s;
+}
+.modal-close:hover { color:#fff; }

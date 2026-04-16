@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>FestFlow — TechFest 2025</title>
+<link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body>
+
+<!-- ── Loader ── -->
+<div id="loader">
+  <h2>⚡ FestFlow</h2>
+  <p>Initialising…</p>
+  <div class="loader-bar"><div class="loader-fill"></div></div>
+</div>
+
+<!-- ── Navbar ── -->
+<nav class="nav">
+  <a class="nav-brand" href="#" onclick="showPage('landing')">
+    <div class="nav-logo-dot"></div>Fest<span>Flow</span>
+  </a>
+  <div class="nav-links">
+    <button class="nav-link" data-page="landing">Home</button>
+    <button class="nav-link" data-page="register">Register</button>
+  </div>
+  <a href="admin.html" class="btn btn-secondary btn-sm" style="margin-left:auto">
+    🔐 Command Centre
+  </a>
+</nav>
+
+<div id="toast-container"></div>
+
+<!-- ══════════════════ PAGE: Landing ══════════════════ -->
+<div id="page-landing" class="page main-content">
+  <section class="hero">
+    <div class="hero-grid"></div>
+    <div class="hero-orb hero-orb-1"></div>
+    <div class="hero-orb hero-orb-2"></div>
+    <div style="position:relative;z-index:1">
+      <div class="hero-tag">🤖 Powered by Gemini AI</div>
+      <h1>Event Management,<br/>Handled by <em>AI</em></h1>
+      <p>FestFlow automates volunteer coordination, real-time rescheduling, and personalised briefings so coordinators can focus on the fest — not the firefighting.</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary" onclick="showPage('register')">🎟️ Register Now</button>
+        <a href="admin.html" class="btn btn-secondary">📊 Command Centre</a>
+      </div>
+    </div>
+  </section>
+
+  <section style="padding:4rem 2rem;max-width:1100px;margin:0 auto">
+    <div style="text-align:center;margin-bottom:3rem">
+      <h2 style="font-size:2rem;font-weight:800;color:#fff;margin-bottom:.75rem">How FestFlow Works</h2>
+      <p style="color:var(--text2);max-width:480px;margin:0 auto">Three phases, zero human firefighting.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem">
+      <div class="card" style="border-color:rgba(59,130,246,.2)">
+        <div style="font-size:2rem;margin-bottom:1rem">📋</div>
+        <h3 style="font-size:1.1rem;margin-bottom:.5rem">Phase 1 — Registration</h3>
+        <p style="color:var(--text2);font-size:.88rem;line-height:1.6">Participants register for sessions. Volunteers submit skills and availability. AI maps them to the best-fit slots.</p>
+      </div>
+      <div class="card" style="border-color:rgba(6,182,212,.2)">
+        <div style="font-size:2rem;margin-bottom:1rem">🔄</div>
+        <h3 style="font-size:1.1rem;margin-bottom:.5rem">Phase 2 — Live Rescheduling</h3>
+        <p style="color:var(--text2);font-size:.88rem;line-height:1.6">Someone drops out? AI detects the gap, scans the waitlist, picks a replacement, and notifies everyone automatically.</p>
+      </div>
+      <div class="card" style="border-color:rgba(16,185,129,.2)">
+        <div style="font-size:2rem;margin-bottom:1rem">📨</div>
+        <h3 style="font-size:1.1rem;margin-bottom:.5rem">Phase 3 — Personalised Briefings</h3>
+        <p style="color:var(--text2);font-size:.88rem;line-height:1.6">Every volunteer receives an AI-crafted personal briefing email before the event — role, venue, timing, and encouragement.</p>
+      </div>
+    </div>
+  </section>
+
+  <section style="padding:3rem 2rem 6rem;text-align:center">
+    <div style="max-width:540px;margin:0 auto;padding:2.5rem;background:var(--bg2);border:1px solid rgba(59,130,246,.2);border-radius:20px">
+      <h3 style="font-size:1.4rem;margin-bottom:.5rem">🚀 Ready to join?</h3>
+      <p style="color:var(--text2);font-size:.88rem;margin-bottom:1.5rem">Register as a participant or volunteer for TechFest 2025.</p>
+      <button class="btn btn-primary" onclick="showPage('register')">🎟️ Register Now</button>
+    </div>
+  </section>
+</div>
+
+<!-- ══════════════════ PAGE: Registration Portal ══════════════════ -->
+<div id="page-register" class="page main-content">
+  <div class="form-section" style="padding-top:3rem">
+    <div id="reg-form-wrap">
+      <div class="form-header">
+        <div style="display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .8rem;border-radius:100px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);font-size:.75rem;color:var(--accent2);margin-bottom:1rem">🎟️ REGISTRATION PORTAL</div>
+        <h2>Register for TechFest 2025</h2>
+        <p>Fill in your details and choose whether you'd like to attend or volunteer.</p>
+      </div>
+      <div class="form-card">
+        <form onsubmit="submitRegistration(event)">
+          <!-- Role Toggle -->
+          <div class="form-group">
+            <label>I want to register as *</label>
+            <div class="role-toggle">
+              <button type="button" class="role-btn active" id="role-participant" onclick="setRole('participant')">🎟️ Participant</button>
+              <button type="button" class="role-btn" id="role-volunteer" onclick="setRole('volunteer')">🙋 Volunteer</button>
+            </div>
+          </div>
+
+          <!-- Common fields -->
+          <div class="form-row">
+            <div class="form-group">
+              <label>Full Name *</label>
+              <input id="reg-name" type="text" placeholder="Rahul Gupta" required/>
+            </div>
+            <div class="form-group">
+              <label>Email *</label>
+              <input id="reg-email" type="email" placeholder="rahul@example.com" required/>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Phone</label>
+              <input id="reg-phone" type="tel" placeholder="+91-9876543210"/>
+            </div>
+            <div class="form-group">
+              <label>College / Institute</label>
+              <input id="reg-college" type="text" placeholder="NIT Warangal"/>
+            </div>
+          </div>
+
+          <!-- Participant fields -->
+          <div id="participant-fields">
+            <div class="form-group">
+              <label>Select Sessions to Attend *</label>
+              <div class="checkbox-group" id="par-events">
+                <span class="checkbox-chip" data-value="ses-001"><input type="checkbox"/>🚀 Hackathon Kickoff</span>
+                <span class="checkbox-chip" data-value="ses-002"><input type="checkbox"/>🤖 AI & ML Workshop</span>
+                <span class="checkbox-chip" data-value="ses-003"><input type="checkbox"/>🎤 Cultural Night</span>
+                <span class="checkbox-chip" data-value="ses-004"><input type="checkbox"/>💬 Panel Discussion</span>
+                <span class="checkbox-chip" data-value="ses-005"><input type="checkbox"/>🤖 Robotics Demo</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Volunteer fields -->
+          <div id="volunteer-fields" style="display:none">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Year</label>
+                <select id="vol-year">
+                  <option value="">Select year</option>
+                  <option>1st</option><option>2nd</option><option>3rd</option><option>4th</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Branch / Department</label>
+                <input id="vol-branch" type="text" placeholder="CSE, ECE, MECH…"/>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Your Skills *</label>
+              <div class="checkbox-group" id="vol-skills">
+                <span class="checkbox-chip" data-value="hosting"><input type="checkbox"/>🎤 Hosting</span>
+                <span class="checkbox-chip" data-value="tech-support"><input type="checkbox"/>💻 Tech Support</span>
+                <span class="checkbox-chip" data-value="registration"><input type="checkbox"/>📋 Registration</span>
+                <span class="checkbox-chip" data-value="logistics"><input type="checkbox"/>📦 Logistics</span>
+                <span class="checkbox-chip" data-value="crowd-management"><input type="checkbox"/>👥 Crowd Management</span>
+                <span class="checkbox-chip" data-value="photography"><input type="checkbox"/>📷 Photography</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Availability (Session Times) *</label>
+              <div class="checkbox-group" id="vol-avail">
+                <span class="checkbox-chip" data-value="09:00"><input type="checkbox"/>9:00 AM</span>
+                <span class="checkbox-chip" data-value="11:00"><input type="checkbox"/>11:00 AM</span>
+                <span class="checkbox-chip" data-value="13:00"><input type="checkbox"/>1:00 PM</span>
+                <span class="checkbox-chip" data-value="14:00"><input type="checkbox"/>2:00 PM</span>
+                <span class="checkbox-chip" data-value="18:00"><input type="checkbox"/>6:00 PM</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Preferred Events (optional)</label>
+              <div class="checkbox-group" id="vol-pref-events">
+                <span class="checkbox-chip" data-value="ses-001"><input type="checkbox"/>🚀 Hackathon Kickoff</span>
+                <span class="checkbox-chip" data-value="ses-002"><input type="checkbox"/>🤖 AI & ML Workshop</span>
+                <span class="checkbox-chip" data-value="ses-003"><input type="checkbox"/>🎤 Cultural Night</span>
+                <span class="checkbox-chip" data-value="ses-004"><input type="checkbox"/>💬 Panel Discussion</span>
+                <span class="checkbox-chip" data-value="ses-005"><input type="checkbox"/>🤖 Robotics Demo</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:1.5rem">
+            <button id="reg-submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:.8rem">
+              🎟️ Complete Registration
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Success -->
+    <div id="reg-success" style="display:none" class="form-card form-success">
+      <div class="success-icon">🎉</div>
+      <h3>Welcome, <span id="reg-success-name"></span>!</h3>
+      <p id="reg-success-detail"></p>
+      <p style="margin-top:.5rem;color:var(--text2);font-size:.85rem">A confirmation has been sent to your email.</p>
+      <button class="btn btn-secondary" style="margin-top:1.5rem" onclick="resetRegForm()">Register Another</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script type="module" src="js/user.js"></script>
+</body>
+</html>
