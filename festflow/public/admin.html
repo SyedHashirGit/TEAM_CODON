@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>FestFlow — Event Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><path d='M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20'/><path d='M2 12h20'/></svg>">
+<link rel="stylesheet" href="css/styles.css"/>
+<link rel="stylesheet" href="css/admin.css"/>
+<script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+<!-- ── Auth Modal ── -->
+<div id="auth-overlay" class="auth-overlay">
+  <div class="auth-modal">
+    <div class="auth-logo"><div class="nav-logo-dot"></div>Fest<span>Flow</span></div>
+    <h2>Dashboard Access</h2>
+    <p>Enter your credentials to continue</p>
+    <div id="auth-error" class="auth-error" style="display:none">❌ Invalid username or password</div>
+    <div class="form-group" style="margin-top:1.5rem">
+      <label>Username</label>
+      <input id="auth-user" type="text" placeholder="admin" autocomplete="off"/>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input id="auth-pass" type="password" placeholder="••••••"/>
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:1rem" onclick="doLogin()">🔐 Login</button>
+    <a href="index.html" style="display:block;text-align:center;margin-top:1rem;color:var(--text2);font-size:.82rem">← Back to User Portal</a>
+  </div>
+</div>
+
+<!-- ── Main Admin UI (hidden until auth) ── -->
+<div id="admin-app" style="display:none">
+
+<!-- Loader -->
+<div id="loader">
+  <h2>⚡ FestFlow</h2>
+  <p>Loading Dashboard…</p>
+</div>
+
+<!-- Navbar -->
+<nav class="nav">
+  <a class="nav-brand" href="index.html">
+    <div class="nav-logo-dot"></div>Fest<span>Flow</span>
+  </a>
+  <div class="nav-links">
+    <button class="nav-link active" data-page="dashboard" onclick="showAdminPage('dashboard')">📊 Dashboard</button>
+    <button class="nav-link" data-page="volunteers" onclick="showAdminPage('volunteers')">🙋 Volunteers</button>
+    <button class="nav-link" data-page="participants" onclick="showAdminPage('participants')">👥 Participants</button>
+    <button class="nav-link" data-page="events" onclick="showAdminPage('events')">📅 Events</button>
+    <button class="nav-link" data-page="notifications" onclick="showAdminPage('notifications')">🔔 Notifications</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:.75rem;margin-left:auto">
+    <div class="nav-badge"><div class="status-dot"></div>AI Agent Online</div>
+    <button class="theme-toggle" id="theme-toggle" title="Toggle Theme" style="margin: 0 0.5rem">
+      <i data-lucide="sun" id="sun-icon"></i>
+      <i data-lucide="moon" id="moon-icon" style="display:none"></i>
+    </button>
+    <button class="btn btn-secondary btn-sm" onclick="doLogout()">
+      <i data-lucide="log-out" style="width:14px;height:14px"></i> Logout
+    </button>
+  </div>
+</nav>
+
+<div id="toast-container"></div>
+
+<!-- ══════════ PAGE: Dashboard ══════════ -->
+<div id="page-dashboard" class="page main-content active">
+  <div class="dashboard">
+    <div class="dashboard-header">
+      <div>
+        <h1>⚡ Dashboard</h1>
+        <p>Real-time event overview · Action-driven logistics</p>
+      </div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn btn-secondary btn-sm" onclick="runSeed()">🌱 Reset Data</button>
+        <button class="btn btn-secondary btn-sm" onclick="loadDashboard()">🔄 Refresh</button>
+      </div>
+    </div>
+
+    <!-- Quick Actions Panel -->
+    <div class="card" style="margin-bottom: 2rem; padding: 1.25rem;">
+      <h3 style="font-size: 1rem; margin-bottom: 1rem; font-family: 'Sora', sans-serif;">Quick Actions</h3>
+      <div class="action-btns">
+        <button class="btn btn-secondary btn-sm" onclick="showAdminPage('volunteers')">➕ Add Volunteer</button>
+        <button class="btn btn-primary btn-sm" onclick="handleAutoAssignAll()">🔄 Auto-assign All Gaps</button>
+        <button class="btn btn-green btn-sm" id="briefings-btn" onclick="sendAllBriefings()">📩 Send All Briefings</button>
+        <button class="btn btn-secondary btn-sm" onclick="showAdminPage('events')">📊 View Full Schedule</button>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card" style="--accent-color:var(--accent2)">
+        <div class="stat-icon">👥</div><div class="stat-label">Participants</div>
+        <div class="stat-value" id="stat-participants">—</div>
+        <div class="stat-sub" id="sub-participants">Loading...</div>
+      </div>
+      <div class="stat-card" style="--accent-color:var(--green)">
+        <div class="stat-icon">🙋</div><div class="stat-label">Active Volunteers</div>
+        <div class="stat-value" id="stat-volunteers">—</div>
+        <div class="stat-sub" id="sub-volunteers">Loading...</div>
+      </div>
+      <div class="stat-card" style="--accent-color:var(--amber)">
+        <div class="stat-icon">⏳</div><div class="stat-label">Waitlist Backup</div>
+        <div class="stat-value" id="stat-waitlist">—</div>
+        <div class="stat-sub" id="sub-waitlist">Loading...</div>
+      </div>
+      <div class="stat-card" style="--accent-color:var(--red)">
+        <div class="stat-icon">🔄</div><div class="stat-label">Reshuffles Today</div>
+        <div class="stat-value" id="stat-reshuffles">—</div>
+        <div class="stat-sub" id="sub-reshuffles">Loading...</div>
+      </div>
+      <div class="stat-card" style="--accent-color:var(--accent)">
+        <div class="stat-icon">📨</div><div class="stat-label">Briefings Sent</div>
+        <div class="stat-value" id="stat-briefings">—</div>
+        <div class="stat-sub" id="sub-briefings">Loading...</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🔔</div><div class="stat-label">Unread Notifs</div>
+        <div class="stat-value" id="stat-unread">—</div>
+        <div class="stat-sub" id="sub-unread">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Critical Alerts -->
+    <div id="alerts-section" style="margin-bottom: 2.5rem; display: none;">
+      <h2 style="font-size: 1.25rem; font-family: 'Sora', sans-serif; color: var(--red); margin-bottom: 1rem;">🚨 Attention Needed</h2>
+      <div id="alerts-container"></div>
+    </div>
+
+    <!-- Volunteer Coverage Summary -->
+    <div class="card" style="margin-bottom: 2rem;">
+      <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">Volunteer Coverage Summary</h3>
+      <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text2);">
+        <span id="coverage-assigned">Assigned: 0</span>
+        <span id="coverage-total">Total Needed: 0</span>
+      </div>
+      <div class="coverage-bar"><div class="coverage-fill" id="coverage-fill" style="width: 0%;"></div></div>
+      <div style="font-size: 0.85rem; margin-top: 0.5rem; font-weight: 500;" id="coverage-missing">Missing: 0</div>
+    </div>
+
+    <div class="dash-grid" style="grid-template-columns: 2fr 1fr;">
+      <div>
+        <div class="card" style="margin-bottom:1.5rem;padding:0;overflow:hidden">
+          <div class="section-header" style="padding:1.2rem 1.5rem">
+            <div><h2 style="font-size:1.1rem">📅 Master Schedule Alerts</h2><p>Immediate coverage status</p></div>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="schedule-table">
+              <thead><tr><th>Session</th><th>Venue</th><th>Status</th><th>Volunteers Assigned</th><th>Actions</th></tr></thead>
+              <tbody id="schedule-body"><tr><td colspan="5" style="padding:2rem;text-align:center;color:var(--text2)">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="side-panel">
+        <div class="card" style="padding:0;overflow:hidden">
+          <div class="section-header" style="padding:1rem 1.2rem .6rem"><h2 style="font-size:.95rem">🔔 Live Updates</h2></div>
+          <div class="notif-feed" id="notif-feed-dash" style="padding:0 .8rem .8rem">
+            <div class="empty-state"><div class="empty-icon">🔔</div><p>No notifications</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ PAGE: Volunteers ══════════ -->
+<div id="page-volunteers" class="page main-content">
+  <div class="section-header">
+    <div>
+      <h2>🙋 Volunteers</h2>
+      <p><span id="vol-count">—</span> total · <span id="vol-active-count">—</span> active · <span id="vol-wait-count">—</span> waitlisted</p>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="openAddVolunteer()">➕ Add Volunteer</button>
+  </div>
+  <div class="tabs">
+    <button class="tab vol-tab active" data-filter="all">All</button>
+    <button class="tab vol-tab" data-filter="active">Active</button>
+    <button class="tab vol-tab" data-filter="waitlist">Waitlist</button>
+    <button class="tab vol-tab" data-filter="dropped">Dropped</button>
+  </div>
+  <div class="vol-grid" id="vol-grid">
+    <div class="empty-state"><div class="empty-icon">🙋</div><p>Loading…</p></div>
+  </div>
+</div>
+
+<!-- ══════════ PAGE: Participants ══════════ -->
+<div id="page-participants" class="page main-content">
+  <div class="section-header">
+    <div>
+      <h2>👥 Participants</h2>
+      <p><span id="par-count">—</span> registered for TechFest 2026</p>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="openAddParticipant()">➕ Add Participant</button>
+  </div>
+  <div class="participants-list" id="participants-list">
+    <div class="empty-state"><div class="empty-icon">👥</div><p>Loading…</p></div>
+  </div>
+</div>
+
+<!-- ══════════ PAGE: Events ══════════ -->
+<div id="page-events" class="page main-content">
+  <div class="section-header">
+    <div>
+      <h2>📅 Events & Sessions</h2>
+      <p>Manage all sessions for TechFest 2026</p>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="openAddSession()">➕ Add Session</button>
+  </div>
+  <div style="padding:1.5rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1rem" id="events-grid">
+    <div class="empty-state"><div class="empty-icon">📅</div><p>Loading…</p></div>
+  </div>
+</div>
+
+<!-- ══════════ PAGE: Notifications ══════════ -->
+<div id="page-notifications" class="page main-content">
+  <div class="section-header">
+    <div>
+      <h2>🔔 All Notifications</h2>
+      <p><span id="notif-count">—</span> total · <span id="notif-unread">—</span> unread</p>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="loadNotifications()">🔄 Refresh</button>
+  </div>
+  <div style="padding:0 1.5rem 2rem;max-width:800px">
+    <div id="notifs-list"><div class="empty-state"><div class="empty-icon">🔔</div><p>Loading…</p></div></div>
+  </div>
+</div>
+
+</div><!-- /admin-app -->
+
+<!-- ══════════ MODALS ══════════ -->
+
+<!-- Notification Detail Modal -->
+<div id="notif-modal" class="modal-overlay" style="display:none" onclick="closeNotifModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="notif-modal-title">Notification Details</h3>
+      <button class="modal-close" onclick="document.getElementById('notif-modal').style.display='none'">✕</button>
+    </div>
+    <div id="notif-modal-body" style="padding:1.5rem"></div>
+  </div>
+</div>
+
+<!-- Add/Edit Volunteer Modal -->
+<div id="vol-modal" class="modal-overlay" style="display:none" onclick="closeModal('vol-modal',event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="vol-modal-title">Add Volunteer</h3>
+      <button class="modal-close" onclick="document.getElementById('vol-modal').style.display='none'">✕</button>
+    </div>
+    <div style="padding:1.5rem">
+      <form onsubmit="saveVolunteer(event)">
+        <input type="hidden" id="vol-edit-id"/>
+        <div class="form-row">
+          <div class="form-group"><label>Name *</label><input id="ve-name" required placeholder="Full name"/></div>
+          <div class="form-group"><label>Email *</label><input id="ve-email" type="email" required placeholder="email@college.edu"/></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Phone</label><input id="ve-phone" placeholder="+91-..."/></div>
+          <div class="form-group"><label>Year</label>
+            <select id="ve-year"><option value="">—</option><option>1st</option><option>2nd</option><option>3rd</option><option>4th</option></select>
+          </div>
+        </div>
+        <div class="form-group"><label>Branch</label><input id="ve-branch" placeholder="CSE, ECE..."/></div>
+        <div class="form-group"><label>Skills</label>
+          <div class="checkbox-group" id="ve-skills">
+            <span class="checkbox-chip" data-value="hosting"><input type="checkbox"/>🎤 Hosting</span>
+            <span class="checkbox-chip" data-value="tech-support"><input type="checkbox"/>💻 Tech Support</span>
+            <span class="checkbox-chip" data-value="registration"><input type="checkbox"/>📋 Registration</span>
+            <span class="checkbox-chip" data-value="logistics"><input type="checkbox"/>📦 Logistics</span>
+            <span class="checkbox-chip" data-value="crowd-management"><input type="checkbox"/>👥 Crowd Mgmt</span>
+            <span class="checkbox-chip" data-value="photography"><input type="checkbox"/>📷 Photography</span>
+          </div>
+        </div>
+        <div class="form-group"><label>Availability</label>
+          <div class="checkbox-group" id="ve-avail">
+            <span class="checkbox-chip" data-value="09:00"><input type="checkbox"/>9:00 AM</span>
+            <span class="checkbox-chip" data-value="11:00"><input type="checkbox"/>11:00 AM</span>
+            <span class="checkbox-chip" data-value="13:00"><input type="checkbox"/>1:00 PM</span>
+            <span class="checkbox-chip" data-value="14:00"><input type="checkbox"/>2:00 PM</span>
+            <span class="checkbox-chip" data-value="18:00"><input type="checkbox"/>6:00 PM</span>
+          </div>
+        </div>
+        <div class="form-group"><label>Status</label>
+          <select id="ve-status"><option value="waitlist">Waitlist</option><option value="active">Active</option><option value="dropped">Dropped</option></select>
+        </div>
+        <div style="display:flex;gap:.5rem;margin-top:1rem">
+          <button class="btn btn-primary" style="flex:1;justify-content:center" type="submit">💾 Save</button>
+          <button class="btn btn-secondary" type="button" onclick="document.getElementById('vol-modal').style.display='none'">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Participant Modal -->
+<div id="par-modal" class="modal-overlay" style="display:none" onclick="closeModal('par-modal',event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="par-modal-title">Add Participant</h3>
+      <button class="modal-close" onclick="document.getElementById('par-modal').style.display='none'">✕</button>
+    </div>
+    <div style="padding:1.5rem">
+      <form onsubmit="saveParticipant(event)">
+        <input type="hidden" id="par-edit-id"/>
+        <div class="form-row">
+          <div class="form-group"><label>Name *</label><input id="pe-name" required placeholder="Full name"/></div>
+          <div class="form-group"><label>Email *</label><input id="pe-email" type="email" required placeholder="email@college.edu"/></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Phone</label><input id="pe-phone" placeholder="+91-..."/></div>
+          <div class="form-group"><label>College</label><input id="pe-college" placeholder="NIT Warangal"/></div>
+        </div>
+        <div class="form-group"><label>Sessions</label>
+          <div class="checkbox-group" id="pe-events">
+            <span class="checkbox-chip" data-value="ses-001"><input type="checkbox"/>🚀 Hackathon Kickoff</span>
+            <span class="checkbox-chip" data-value="ses-002"><input type="checkbox"/>🤖 AI & ML Workshop</span>
+            <span class="checkbox-chip" data-value="ses-003"><input type="checkbox"/>🎤 Cultural Night</span>
+            <span class="checkbox-chip" data-value="ses-004"><input type="checkbox"/>💬 Panel Discussion</span>
+            <span class="checkbox-chip" data-value="ses-005"><input type="checkbox"/>🤖 Robotics Demo</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:.5rem;margin-top:1rem">
+          <button class="btn btn-primary" style="flex:1;justify-content:center" type="submit">💾 Save</button>
+          <button class="btn btn-secondary" type="button" onclick="document.getElementById('par-modal').style.display='none'">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Session Modal -->
+<div id="ses-modal" class="modal-overlay" style="display:none" onclick="closeModal('ses-modal',event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="ses-modal-title">Add Session</h3>
+      <button class="modal-close" onclick="document.getElementById('ses-modal').style.display='none'">✕</button>
+    </div>
+    <div style="padding:1.5rem">
+      <form onsubmit="saveSession(event)">
+        <input type="hidden" id="ses-edit-id"/>
+        <div class="form-row">
+          <div class="form-group"><label>Session Name *</label><input id="se-name" required placeholder="AI & ML Workshop"/></div>
+          <div class="form-group"><label>Venue *</label><input id="se-venue" required placeholder="Lab 3"/></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Time *</label><input id="se-time" type="time" required/></div>
+          <div class="form-group"><label>Duration (min) *</label><input id="se-duration" type="number" required placeholder="90"/></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Min Volunteers</label><input id="se-minvol" type="number" placeholder="2"/></div>
+          <div class="form-group"><label>Max Volunteers</label><input id="se-maxvol" type="number" placeholder="4"/></div>
+        </div>
+        <div class="form-group"><label>Required Skills</label>
+          <div class="checkbox-group" id="se-skills">
+            <span class="checkbox-chip" data-value="hosting"><input type="checkbox"/>🎤 Hosting</span>
+            <span class="checkbox-chip" data-value="tech-support"><input type="checkbox"/>💻 Tech Support</span>
+            <span class="checkbox-chip" data-value="registration"><input type="checkbox"/>📋 Registration</span>
+            <span class="checkbox-chip" data-value="logistics"><input type="checkbox"/>📦 Logistics</span>
+            <span class="checkbox-chip" data-value="crowd-management"><input type="checkbox"/>👥 Crowd Mgmt</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:.5rem;margin-top:1rem">
+          <button class="btn btn-primary" style="flex:1;justify-content:center" type="submit">💾 Save Session</button>
+          <button class="btn btn-secondary" type="button" onclick="document.getElementById('ses-modal').style.display='none'">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div id="confirm-modal" class="modal-overlay" style="display:none">
+  <div class="modal-box" style="max-width:400px">
+    <div style="padding:1.5rem;text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:1rem">⚠️</div>
+      <h3 style="margin-bottom:.5rem" id="confirm-title">Are you sure?</h3>
+      <p style="color:var(--text2);font-size:.88rem;margin-bottom:1.5rem" id="confirm-msg">This action cannot be undone.</p>
+      <div style="display:flex;gap:.75rem;justify-content:center">
+        <button class="btn btn-danger" onclick="confirmDeleteAction()">Yes, Delete</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('confirm-modal').style.display='none'">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script type="module" src="js/admin.js"></script>
+</body>
+</html>
