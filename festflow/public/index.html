@@ -33,7 +33,7 @@
       <i data-lucide="moon" id="moon-icon" style="display:none"></i>
     </button>
     <a href="admin.html" class="btn btn-secondary btn-sm">
-      <i data-lucide="lock" style="width:14px;height:14px"></i> Command Centre
+      <i data-lucide="layout-dashboard" style="width:14px;height:14px"></i> Dashboard
     </a>
   </div>
 </nav>
@@ -42,50 +42,112 @@
 
 <!-- ══════════════════ PAGE: Landing ══════════════════ -->
 <div id="page-landing" class="page main-content">
+  <!-- Hero Section -->
   <section class="hero">
-    <div class="hero-grid"></div>
-    <div class="hero-orb hero-orb-1"></div>
-    <div class="hero-orb hero-orb-2"></div>
     <div style="position:relative;z-index:1">
-      <div class="hero-tag">🤖 Powered by Gemini AI</div>
-      <h1>Event Management,<br/>Handled by <em>AI</em></h1>
-      <p>FestFlow automates volunteer coordination, real-time rescheduling, and personalised briefings so coordinators can focus on the fest — not the firefighting.</p>
+      <h1>Run Your Event<br/>Without the Chaos</h1>
+      <p>Manage registrations, fill last-minute dropouts, and keep volunteers informed automatically.</p>
       <div class="hero-actions">
-        <button class="btn btn-primary" onclick="showPage('register')">🎟️ Register Now</button>
-        <a href="admin.html" class="btn btn-secondary">📊 Command Centre</a>
+        <button class="btn btn-primary" onclick="showPage('register')">Register for Event</button>
+        <a href="admin.html" class="btn btn-secondary">Go to Dashboard</a>
       </div>
     </div>
   </section>
 
-  <section style="padding:4rem 2rem;max-width:1100px;margin:0 auto">
-    <div style="text-align:center;margin-bottom:3rem">
-      <h2 style="font-size:2rem;font-weight:800;color:var(--text);margin-bottom:.75rem">How FestFlow Works</h2>
-      <p style="color:var(--text2);max-width:480px;margin:0 auto">Three phases, zero human firefighting.</p>
+  <!-- Section: Who it's for -->
+  <section class="section">
+    <div class="section-center" style="margin-bottom:4rem">
+      <h2 style="font-size:2.4rem;margin-bottom:1rem">Built for Event Teams Who Can’t Afford Chaos</h2>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem">
-      <div class="card" style="border-color:rgba(59,130,246,.2)">
-        <div style="font-size:2rem;margin-bottom:1rem">📋</div>
-        <h3 style="font-size:1.1rem;margin-bottom:.5rem">Phase 1 — Registration</h3>
-        <p style="color:var(--text2);font-size:.88rem;line-height:1.6">Participants register for sessions. Volunteers submit skills and availability. AI maps them to the best-fit slots.</p>
+    <div class="grid-3">
+      <div class="card">
+        <div style="font-size:2rem;margin-bottom:1rem">🏛️</div>
+        <h3 style="margin-bottom:.75rem">College Fest Organizers</h3>
+        <p style="color:var(--text2)">Handle 100+ volunteers without confusion or double-booking.</p>
       </div>
-      <div class="card" style="border-color:rgba(6,182,212,.2)">
-        <div style="font-size:2rem;margin-bottom:1rem">🔄</div>
-        <h3 style="font-size:1.1rem;margin-bottom:.5rem">Phase 2 — Live Rescheduling</h3>
-        <p style="color:var(--text2);font-size:.88rem;line-height:1.6">Someone drops out? AI detects the gap, scans the waitlist, picks a replacement, and notifies everyone automatically.</p>
+      <div class="card">
+        <div style="font-size:2rem;margin-bottom:1rem">🤝</div>
+        <h3 style="margin-bottom:.75rem">Club Coordinators</h3>
+        <p style="color:var(--text2)">Stop chasing people on WhatsApp. Automate assignments and updates.</p>
       </div>
-      <div class="card" style="border-color:rgba(16,185,129,.2)">
-        <div style="font-size:2rem;margin-bottom:1rem">📨</div>
-        <h3 style="font-size:1.1rem;margin-bottom:.5rem">Phase 3 — Personalised Briefings</h3>
-        <p style="color:var(--text2);font-size:.88rem;line-height:1.6">Every volunteer receives an AI-crafted personal briefing email before the event — role, venue, timing, and encouragement.</p>
+      <div class="card">
+        <div style="font-size:2rem;margin-bottom:1rem">⚡</div>
+        <h3 style="margin-bottom:.75rem">Event Managers</h3>
+        <p style="color:var(--text2)">Replace dropouts instantly. No panic, no manual waitlist scanning.</p>
       </div>
     </div>
   </section>
 
-  <section style="padding:3rem 2rem 6rem;text-align:center">
-    <div style="max-width:540px;margin:0 auto;padding:2.5rem;background:var(--bg2);border:1px solid rgba(59,130,246,.2);border-radius:20px">
-      <h3 style="font-size:1.4rem;margin-bottom:.5rem">🚀 Ready to join?</h3>
-      <p style="color:var(--text2);font-size:.88rem;margin-bottom:1.5rem">Register as a participant or volunteer for TechFest 2026.</p>
-      <button class="btn btn-primary" onclick="showPage('register')">🎟️ Register Now</button>
+  <!-- Section: Problem vs Solution -->
+  <section class="section" style="background:var(--bg2)">
+    <div class="flex-split">
+      <div>
+        <h2 style="font-size:2rem;margin-bottom:2rem">The Problem With Events Today</h2>
+        <ul class="status-list">
+          <li class="status-item problem">Last-minute dropouts</li>
+          <li class="status-item problem">Messy spreadsheets</li>
+          <li class="status-item problem">Endless WhatsApp coordination</li>
+          <li class="status-item problem">Volunteers confused about roles</li>
+        </ul>
+      </div>
+      <div>
+        <h2 style="font-size:2rem;margin-bottom:2rem">The FestFlow Solution</h2>
+        <p class="status-item solution">FestFlow automates assignments, fills gaps instantly, and keeps everyone informed without manual effort.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section: How it Works -->
+  <section class="section">
+    <div class="section-center" style="margin-bottom:4rem">
+      <h2 style="font-size:2.4rem">How it Works</h2>
+    </div>
+    <div class="grid-3">
+      <div class="phase-card">
+        <span class="phase-num">Phase 1</span>
+        <h3 style="margin-bottom:1rem">Registration</h3>
+        <p style="color:var(--text2)">People sign up. You instantly get structured data on availability, skills, and preferences.</p>
+      </div>
+      <div class="phase-card">
+        <span class="phase-num">Phase 2</span>
+        <h3 style="margin-bottom:1rem">Rescheduling</h3>
+        <p style="color:var(--text2)">Dropout? A replacement is picked automatically from the waitlist and notified instantly.</p>
+      </div>
+      <div class="phase-card">
+        <span class="phase-num">Phase 3</span>
+        <h3 style="margin-bottom:1rem">Briefings</h3>
+        <p style="color:var(--text2)">Everyone gets a clear, personalized briefing with role, timing, and location before the event.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section: Live Activity -->
+  <section class="section" style="background:var(--bg2)">
+    <div class="section-center">
+      <h2 style="font-size:2.4rem;margin-bottom:1.5rem">See What’s Happening in Real Time</h2>
+      <p style="color:var(--text2);margin-bottom:3rem">Our engine handles the logistics, you see the results.</p>
+      <div class="live-feed" id="live-feed-demo">
+        <div class="feed-item" style="animation-delay: 0.1s"><div class="feed-dot" style="background:var(--red)"></div><div class="feed-text">2 volunteers dropped from Stage Team</div></div>
+        <div class="feed-item" style="animation-delay: 0.8s"><div class="feed-dot"></div><div class="feed-text">Replacement assigned in 3 seconds</div></div>
+        <div class="feed-item" style="animation-delay: 1.5s"><div class="feed-dot"></div><div class="feed-text">12 briefings sent to Registration Team</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section: Why not Excel/WhatsApp -->
+  <section class="section">
+    <div class="section-center">
+      <h2 style="margin-bottom:1.5rem">Why Not Just Use Excel or WhatsApp?</h2>
+      <p style="font-size:1.2rem;color:var(--text2)">Because they don’t adapt. FestFlow reacts in real time — assigning, updating, and notifying automatically.</p>
+    </div>
+  </section>
+
+  <!-- Final CTA -->
+  <section class="section" style="text-align:center;padding-bottom:10rem">
+    <div style="background:var(--accent);padding:4rem;border-radius:32px;color:#fff">
+      <h2 style="font-size:2.8rem;color:#fff;margin-bottom:1rem">Start Managing Your Event in Minutes</h2>
+      <p style="font-size:1.1rem;opacity:.9;margin-bottom:2.5rem">No spreadsheets. No confusion. Just smooth coordination.</p>
+      <button class="btn btn-secondary" style="background:#fff;color:var(--accent);border:none" onclick="showPage('register')">Get Started</button>
     </div>
   </section>
 </div>

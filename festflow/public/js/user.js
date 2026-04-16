@@ -149,4 +149,29 @@ window.addEventListener("DOMContentLoaded", async()=>{
   },1200);
 
   setRole("participant");
+  initLiveFeed();
 });
+
+// ── Live Feed Demo ─────────────────────────────────────────────────────────────
+function initLiveFeed() {
+  const feed = document.getElementById("live-feed-demo");
+  if (!feed) return;
+  const events = [
+    { text: "2 volunteers dropped from Stage Team", color: "var(--red)" },
+    { text: "Replacement assigned in 3 seconds", color: "var(--green)" },
+    { text: "12 briefings sent to Registration Team", color: "var(--accent)" },
+    { text: "Coordinator confirmed 5 new shifts", color: "var(--green)" },
+    { text: "Critical gap detected in Tech Support", color: "var(--amber)" },
+    { text: "AI updated schedule for Workshop 2", color: "var(--accent2)" }
+  ];
+  let cur = 3;
+  setInterval(() => {
+    const item = events[cur % events.length];
+    const div = document.createElement("div");
+    div.className = "feed-item";
+    div.innerHTML = `<div class="feed-dot" style="background:${item.color}"></div><div class="feed-text">${item.text}</div>`;
+    feed.prepend(div);
+    if (feed.children.length > 5) feed.lastElementChild.remove();
+    cur++;
+  }, 3500);
+}
