@@ -71,69 +71,94 @@
   <div class="dashboard">
     <div class="dashboard-header">
       <div>
-        <h1>⚡ Command Centre</h1>
-        <p>Real-time event overview · AI-managed schedule · Live volunteer tracking</p>
+        <h1>⚡ Dashboard</h1>
+        <p>Real-time event overview · Action-driven logistics</p>
       </div>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap">
         <button class="btn btn-secondary btn-sm" onclick="runSeed()">🌱 Reset Data</button>
-        <button class="btn btn-green btn-sm" id="briefings-btn" onclick="sendBriefings()">📨 Send All Briefings</button>
         <button class="btn btn-secondary btn-sm" onclick="loadDashboard()">🔄 Refresh</button>
       </div>
     </div>
 
-    <div class="stats-grid">
-      <div class="stat-card" style="--accent-color:var(--accent2)"><div class="stat-icon">👥</div><div class="stat-label">Participants</div><div class="stat-value" id="stat-participants">—</div></div>
-      <div class="stat-card" style="--accent-color:var(--green)"><div class="stat-icon">🙋</div><div class="stat-label">Active Vols</div><div class="stat-value" id="stat-volunteers">—</div></div>
-      <div class="stat-card" style="--accent-color:var(--amber)"><div class="stat-icon">⏳</div><div class="stat-label">Waitlist</div><div class="stat-value" id="stat-waitlist">—</div></div>
-      <div class="stat-card" style="--accent-color:var(--red)"><div class="stat-icon">🔄</div><div class="stat-label">Reshuffles</div><div class="stat-value" id="stat-reshuffles">—</div></div>
-      <div class="stat-card" style="--accent-color:var(--accent)"><div class="stat-icon">📨</div><div class="stat-label">Briefings Sent</div><div class="stat-value" id="stat-briefings">—</div></div>
-      <div class="stat-card"><div class="stat-icon">🔔</div><div class="stat-label">Unread Notifs</div><div class="stat-value" id="stat-unread">—</div></div>
+    <!-- Quick Actions Panel -->
+    <div class="card" style="margin-bottom: 2rem; padding: 1.25rem;">
+      <h3 style="font-size: 1rem; margin-bottom: 1rem; font-family: 'Sora', sans-serif;">Quick Actions</h3>
+      <div class="action-btns">
+        <button class="btn btn-secondary btn-sm" onclick="showAdminPage('volunteers')">➕ Add Volunteer</button>
+        <button class="btn btn-primary btn-sm" onclick="handleAutoAssignAll()">🔄 Auto-assign All Gaps</button>
+        <button class="btn btn-green btn-sm" id="briefings-btn" onclick="sendAllBriefings()">📩 Send All Briefings</button>
+        <button class="btn btn-secondary btn-sm" onclick="showAdminPage('events')">📊 View Full Schedule</button>
+      </div>
     </div>
 
-    <div class="dash-grid">
+    <div class="stats-grid">
+      <div class="stat-card" style="--accent-color:var(--accent2)">
+        <div class="stat-icon">👥</div><div class="stat-label">Participants</div>
+        <div class="stat-value" id="stat-participants">—</div>
+        <div class="stat-sub" id="sub-participants">Loading...</div>
+      </div>
+      <div class="stat-card" style="--accent-color:var(--green)">
+        <div class="stat-icon">🙋</div><div class="stat-label">Active Volunteers</div>
+        <div class="stat-value" id="stat-volunteers">—</div>
+        <div class="stat-sub" id="sub-volunteers">Loading...</div>
+      </div>
+      <div class="stat-card" style="--accent-color:var(--amber)">
+        <div class="stat-icon">⏳</div><div class="stat-label">Waitlist Backup</div>
+        <div class="stat-value" id="stat-waitlist">—</div>
+        <div class="stat-sub" id="sub-waitlist">Loading...</div>
+      </div>
+      <div class="stat-card" style="--accent-color:var(--red)">
+        <div class="stat-icon">🔄</div><div class="stat-label">Reshuffles Today</div>
+        <div class="stat-value" id="stat-reshuffles">—</div>
+        <div class="stat-sub" id="sub-reshuffles">Loading...</div>
+      </div>
+      <div class="stat-card" style="--accent-color:var(--accent)">
+        <div class="stat-icon">📨</div><div class="stat-label">Briefings Sent</div>
+        <div class="stat-value" id="stat-briefings">—</div>
+        <div class="stat-sub" id="sub-briefings">Loading...</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🔔</div><div class="stat-label">Unread Notifs</div>
+        <div class="stat-value" id="stat-unread">—</div>
+        <div class="stat-sub" id="sub-unread">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Critical Alerts -->
+    <div id="alerts-section" style="margin-bottom: 2.5rem; display: none;">
+      <h2 style="font-size: 1.25rem; font-family: 'Sora', sans-serif; color: var(--red); margin-bottom: 1rem;">🚨 Attention Needed</h2>
+      <div id="alerts-container"></div>
+    </div>
+
+    <!-- Volunteer Coverage Summary -->
+    <div class="card" style="margin-bottom: 2rem;">
+      <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">Volunteer Coverage Summary</h3>
+      <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text2);">
+        <span id="coverage-assigned">Assigned: 0</span>
+        <span id="coverage-total">Total Needed: 0</span>
+      </div>
+      <div class="coverage-bar"><div class="coverage-fill" id="coverage-fill" style="width: 0%;"></div></div>
+      <div style="font-size: 0.85rem; margin-top: 0.5rem; font-weight: 500;" id="coverage-missing">Missing: 0</div>
+    </div>
+
+    <div class="dash-grid" style="grid-template-columns: 2fr 1fr;">
       <div>
         <div class="card" style="margin-bottom:1.5rem;padding:0;overflow:hidden">
           <div class="section-header" style="padding:1.2rem 1.5rem">
-            <div><h2 style="font-size:1.1rem">📅 Master Schedule</h2><p>Live coverage status</p></div>
+            <div><h2 style="font-size:1.1rem">📅 Master Schedule Alerts</h2><p>Immediate coverage status</p></div>
           </div>
           <div style="overflow-x:auto">
             <table class="schedule-table">
-              <thead><tr><th>Session</th><th>Venue</th><th>Coverage</th><th>Volunteers Assigned</th></tr></thead>
-              <tbody id="schedule-body"><tr><td colspan="4" style="padding:2rem;text-align:center;color:var(--text2)">Loading…</td></tr></tbody>
+              <thead><tr><th>Session</th><th>Venue</th><th>Status</th><th>Volunteers Assigned</th><th>Actions</th></tr></thead>
+              <tbody id="schedule-body"><tr><td colspan="5" style="padding:2rem;text-align:center;color:var(--text2)">Loading…</td></tr></tbody>
             </table>
-          </div>
-        </div>
-
-        <div class="dropout-panel">
-          <h3>⚡ Simulate Volunteer Dropout</h3>
-          <p>Select an active volunteer to drop out. Watch the AI agent detect the gap and assign a replacement.</p>
-          <select id="dropout-select" class="dropout-select"><option value="">Loading volunteers…</option></select>
-          <button id="dropout-btn" class="btn btn-danger" style="width:100%;justify-content:center" onclick="handleDropout()">⚡ Trigger Dropout</button>
-          <div class="ai-thinking" id="ai-thinking">
-            <div class="ai-thinking-dots"><span></span><span></span><span></span></div>
-            <p id="thinking-step">Detecting gap in schedule…</p>
-          </div>
-          <div class="ai-result" id="ai-result">
-            <div class="ai-result-header">🧠 AI Decision</div>
-            <div style="margin-bottom:.5rem;font-size:.82rem;color:var(--text2)">Replacement: <strong style="color:var(--text)" id="ai-replacement-name"></strong></div>
-            <div class="ai-result-reasoning" id="ai-reasoning"></div>
-            <div class="ai-result-confidence">
-              <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--text3)"><span>Confidence</span><span id="confidence-pct">—</span></div>
-              <div class="confidence-bar"><div class="confidence-fill" id="confidence-fill" style="width:0%"></div></div>
-            </div>
           </div>
         </div>
       </div>
 
       <div class="side-panel">
         <div class="card" style="padding:0;overflow:hidden">
-          <div class="section-header" style="padding:1rem 1.2rem .6rem"><h2 style="font-size:.95rem">🤖 AI Agent Log</h2></div>
-          <div class="agent-log" id="agent-log-body" style="padding:0 1.2rem 1rem">
-            <div class="empty-state"><div class="empty-icon">🤖</div><p>No actions yet</p></div>
-          </div>
-        </div>
-        <div class="card" style="padding:0;overflow:hidden">
-          <div class="section-header" style="padding:1rem 1.2rem .6rem"><h2 style="font-size:.95rem">🔔 Live Notifications</h2></div>
+          <div class="section-header" style="padding:1rem 1.2rem .6rem"><h2 style="font-size:.95rem">🔔 Live Updates</h2></div>
           <div class="notif-feed" id="notif-feed-dash" style="padding:0 .8rem .8rem">
             <div class="empty-state"><div class="empty-icon">🔔</div><p>No notifications</p></div>
           </div>

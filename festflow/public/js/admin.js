@@ -113,57 +113,88 @@ function statusBadge(status) {
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 async function loadDashboard() {
-  const [stats, schedule, vols, notifs, logs] = await Promise.all([
-    getDashboardStats(), getMasterSchedule(), getAllVolunteers(), getNotifications(20), getAgentLog(30)
+  const [stats, schedule, vols, notifs] = await Promise.all([
+    getDashboardStats(), getMasterSchedule(), getAllVolunteers(), getNotifications(30)
   ]);
 
   document.getElementById("stat-participants").textContent = stats.totalParticipants;
-  document.getElementById("stat-volunteers").textContent   = stats.activeVolunteers;
-  document.getElementById("stat-waitlist").textContent     = stats.waitlistCount;
-  document.getElementById("stat-reshuffles").textContent   = stats.reshufflesPerformed;
-  document.getElementById("stat-briefings").textContent    = stats.briefingsSent;
-  document.getElementById("stat-unread").textContent       = stats.unreadNotifications;
+  document.getElementById("sub-participants").textContent = stats.totalParticipants < 20 ? "⚠️ Low turnout" : "✅ Good turnout";
+  document.getElementById("sub-participants").className = "stat-sub " + (stats.totalParticipants < 20 ? "warn" : "good");
 
+  document.getElementById("stat-volunteers").textContent   = stats.activeVolunteers;
+  document.getElementById("sub-volunteers").textContent = "✅ Active";
+  document.getElementById("sub-volunteers").className = "stat-sub good";
+
+  document.getElementById("stat-waitlist").textContent     = stats.waitlistCount;
+  document.getElementById("sub-waitlist").textContent = stats.waitlistCount < 3 ? "⚠️ Low backup" : "✅ Available";
+  document.getElementById("sub-waitlist").className = "stat-sub " + (stats.waitlistCount < 3 ? "warn" : "good");
+
+  document.getElementById("stat-reshuffles").textContent   = stats.reshufflesPerformed;
+  document.getElementById("sub-reshuffles").textContent = stats.reshufflesPerformed > 0 ? "🔄 Monitored" : "🟢 No reshuffles";
+  document.getElementById("sub-reshuffles").className = "stat-sub " + (stats.reshufflesPerformed > 0 ? "warn" : "good");
+
+  document.getElementById("stat-briefings").textContent    = stats.briefingsSent;
+  document.getElementById("sub-briefings").textContent = "✅ Processed";
+  document.getElementById("sub-briefings").className = "stat-sub good";
+
+  document.getElementById("stat-unread").textContent       = stats.unreadNotifications;
+  document.getElementById("sub-unread").textContent = stats.unreadNotifications > 0 ? "⚠️ Pending review" : "✅ All clear";
+  document.getElementById("sub-unread").className = "stat-sub " + (stats.unreadNotifications > 0 ? "crit" : "good");
+
+  // Critical Alerts
+  let alertArr = [];
+  if (stats.waitlistCount < 3) {
+    alertArr.push(`<div class="alert-card warning"><div class="alert-icon">⚠️</div><div class="alert-content"><strong>Low Waitlist Reserve</strong><p>Only ${stats.waitlistCount} volunteers available as backup.</p></div></div>`);
+  }
+  if (stats.unreadNotifications > 0) {
+    alertArr.push(`<div class="alert-card"><div class="alert-icon">🔔</div><div class="alert-content"><strong>Unread Notifications</strong><p>${stats.unreadNotifications} pending updates require review.</p></div></div>`);
+  }
+
+  let totalNeeded = 0;
+  let totalAssigned = 0;
+  
   const tbl = document.getElementById("schedule-body");
   tbl.innerHTML = schedule.map(s => {
+    totalNeeded += s.maxVol || 0;
+    totalAssigned += s.coverage || 0;
+    
+    let isShort = s.coverage < s.maxVol;
+    let badge = isShort ? `<span class="badge badge-red">❌ Needs Volunteers</span>` : `<span class="badge badge-green">✅ Fully Staffed</span>`;
+    if (isShort) {
+      alertArr.push(`<div class="alert-card"><div class="alert-icon">🚨</div><div class="alert-content"><strong>${s.name} Coverage Shortage</strong><p>Missing ${s.maxVol - s.coverage} volunteer(s).</p></div></div>`);
+    }
+
     const volHtml = s.assignments.length
       ? s.assignments.map(a => {
           const n = a.volunteer?.name||"Unknown";
           return `<span class="vol-chip ${a.isReplacement?"replacement":""}">${a.isReplacement?"🔄 ":""}${n} <span style="opacity:.5;font-size:.7rem">${a.role}</span></span>`;
         }).join("")
-      : `<span class="text-muted text-sm">No volunteers assigned</span>`;
-    return `<tr>
+      : `<span class="text-muted text-sm">No assignments</span>`;
+
+    return `<tr class="${isShort ? 'problem' : ''}">
       <td><div class="session-name">${s.name}</div><div class="session-time">⏰ ${s.time} · ${s.duration}min</div></td>
       <td><div class="session-venue">📍 ${s.venue}</div></td>
-      <td>${coverageBadge(s.coverageStatus)} <span style="color:var(--text3);font-size:.72rem;margin-left:.3rem">${s.coverage}/${s.maxVol}</span></td>
+      <td>${badge} <span style="color:var(--text3);font-size:.72rem;margin-left:.3rem">${s.coverage}/${s.maxVol}</span></td>
       <td><div class="vol-chips">${volHtml}</div></td>
+      <td><button class="btn btn-sm btn-secondary" onclick="showAdminPage('events')">View</button></td>
     </tr>`;
   }).join("");
 
-  // Dropout selector
-  const activeVols = vols.filter(v=>v.status==="active"&&v.assignedSession);
-  const sel = document.getElementById("dropout-select");
-  sel.innerHTML = `<option value="">— Choose a volunteer —</option>` +
-    activeVols.map(v=>`<option value="${v.id}">${v.name} → ${v.assignedSession}</option>`).join("");
+  const alertsSec = document.getElementById("alerts-section");
+  if (alertArr.length > 0) {
+    document.getElementById("alerts-container").innerHTML = alertArr.join("");
+    alertsSec.style.display = "block";
+  } else {
+    alertsSec.style.display = "none";
+  }
 
-  // Agent log
-  const logEl = document.getElementById("agent-log-body");
-  const logIcons = {
-    DROPOUT_DETECTED:"🚨",VOLUNTEER_MARKED_DROPPED:"❌",AI_REASONING_START:"🤔",
-    AI_REASONING_COMPLETE:"🧠",ASSIGNMENT_CREATED:"✅",RESHUFFLE_COMPLETE:"🔄",
-    NO_REPLACEMENT_FOUND:"⚠️",PARTICIPANT_REGISTERED:"👤",VOLUNTEER_REGISTRATION_START:"🙋",
-    VOLUNTEER_ASSIGNED:"📋",VOLUNTEER_WAITLISTED:"⏳",BULK_BRIEFINGS_SENT:"📨"
-  };
-  logEl.innerHTML = logs.length ? logs.map(l=>{
-    const icon = logIcons[l.action]||"📌";
-    const detail = typeof l.details==="object" ? JSON.stringify(l.details).slice(0,80) : String(l.details||"");
-    return `<div class="log-entry">
-      <div class="log-icon">${icon}</div>
-      <div><div class="log-action">${l.action.replace(/_/g," ")}</div>
-           <div class="log-time">${relTime(l.timestamp)}</div>
-           ${detail?`<div class="log-detail">${detail}</div>`:""}
-      </div></div>`;
-  }).join("") : `<div class="empty-state"><div class="empty-icon">🤖</div><p>No agent actions yet</p></div>`;
+  // Coverage bar
+  document.getElementById("coverage-assigned").textContent = `Assigned: ${totalAssigned}`;
+  document.getElementById("coverage-total").textContent = `Total Needed: ${totalNeeded}`;
+  document.getElementById("coverage-missing").textContent = `Missing: ${Math.max(0, totalNeeded - totalAssigned)}`;
+  let pct = totalNeeded === 0 ? 0 : Math.round((totalAssigned / totalNeeded) * 100);
+  document.getElementById("coverage-fill").style.width = `${pct}%`;
+  if (pct < 100) { document.getElementById("coverage-fill").style.backgroundColor = "var(--red)"; }
 
   renderNotifFeed(notifs, document.getElementById("notif-feed-dash"));
 }
