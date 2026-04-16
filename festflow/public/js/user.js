@@ -2,6 +2,34 @@ import {
   fb, seedDatabase, registerParticipant, registerVolunteer
 } from './backend.js';
 
+// ── Theme Management ─────────────────────────────────────────────────────────
+function initTheme() {
+  const saved = localStorage.getItem("festflow-theme") || "dark";
+  document.documentElement.setAttribute("data-theme", saved);
+  updateThemeIcons(saved);
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme");
+  const next = current === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  localStorage.setItem("festflow-theme", next);
+  updateThemeIcons(next);
+}
+
+function updateThemeIcons(theme) {
+  const sun = document.getElementById("sun-icon");
+  const moon = document.getElementById("moon-icon");
+  if (!sun || !moon) return;
+  if (theme === "dark") {
+    sun.style.display = "block";
+    moon.style.display = "none";
+  } else {
+    sun.style.display = "none";
+    moon.style.display = "block";
+  }
+}
+
 // ── Toast ─────────────────────────────────────────────────────────────────────
 function toast(title, msg, type="info", duration=4000) {
   const icons = { info:"ℹ️", success:"✅", error:"❌", warning:"⚠️" };
@@ -54,7 +82,7 @@ window.submitRegistration = async function(e) {
       document.getElementById("reg-success").style.display   = "block";
       document.getElementById("reg-success-name").textContent = name;
       document.getElementById("reg-success-detail").textContent = `You're registered for ${events.length} session(s). Check your email for confirmation!`;
-      toast("Registered!","Welcome to TechFest 2025 🎉","success");
+      toast("Registered!","Welcome to TechFest 2026 🎉","success");
     } else {
       const skills = [...document.querySelectorAll("#vol-skills .checkbox-chip.checked")].map(el=>el.dataset.value);
       const availability = [...document.querySelectorAll("#vol-avail .checkbox-chip.checked")].map(el=>el.dataset.value);
@@ -101,6 +129,11 @@ document.querySelectorAll(".nav-link[data-page]").forEach(l=>{
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", async()=>{
+  initTheme();
+  lucide.createIcons();
+
+  document.getElementById("theme-toggle")?.addEventListener("click", toggleTheme);
+
   const loader = document.getElementById("loader");
   try {
     const existing = await fb.get("sessions");

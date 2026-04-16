@@ -7,6 +7,34 @@ import {
   getDashboardStats, markNotifRead, pushNotif, logAction, SEED
 } from './backend.js';
 
+// ── Theme Management ─────────────────────────────────────────────────────────
+function initTheme() {
+  const saved = localStorage.getItem("festflow-theme") || "dark";
+  document.documentElement.setAttribute("data-theme", saved);
+  updateThemeIcons(saved);
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme");
+  const next = current === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  localStorage.setItem("festflow-theme", next);
+  updateThemeIcons(next);
+}
+
+function updateThemeIcons(theme) {
+  const sun = document.getElementById("sun-icon");
+  const moon = document.getElementById("moon-icon");
+  if (!sun || !moon) return;
+  if (theme === "dark") {
+    sun.style.display = "block";
+    moon.style.display = "none";
+  } else {
+    sun.style.display = "none";
+    moon.style.display = "block";
+  }
+}
+
 // ── Auth ──────────────────────────────────────────────────────────────────────
 const ADMIN_USER = "admin";
 const ADMIN_PASS = "admin";
@@ -182,7 +210,7 @@ window.openNotifModal = async function(id) {
       <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
         <div class="par-avatar ${avatarColor(n.toName||'S')}" style="width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem">${initials(n.toName||"System")}</div>
         <div>
-          <div style="font-weight:600;color:#fff">${n.toName||"System"}</div>
+          <div style="font-weight:600;color:var(--text)">${n.toName||"System"}</div>
           <div style="color:var(--text2);font-size:.75rem">${new Date(n.timestamp).toLocaleString()}</div>
         </div>
       </div>
@@ -201,8 +229,8 @@ window.openNotifModal = async function(id) {
         ${(n.message||"").replace(/\n/g,"<br/>")}
       </div>
     `}
-    ${n.sessionName ? `<div style="margin-top:1rem;font-size:.8rem;color:var(--text2)">📅 Session: <strong style="color:#fff">${n.sessionName}</strong></div>` : ""}
-    ${n.role ? `<div style="font-size:.8rem;color:var(--text2)">🎭 Role: <strong style="color:#fff">${n.role}</strong></div>` : ""}
+    ${n.sessionName ? `<div style="margin-top:1rem;font-size:.8rem;color:var(--text2)">📅 Session: <strong style="color:var(--text)">${n.sessionName}</strong></div>` : ""}
+    ${n.role ? `<div style="font-size:.8rem;color:var(--text2)">🎭 Role: <strong style="color:var(--text)">${n.role}</strong></div>` : ""}
   `;
   document.getElementById("notif-modal").style.display = "flex";
 };
@@ -481,7 +509,7 @@ async function loadEvents() {
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem">
         <div>
-          <div style="font-weight:700;color:#fff;font-size:1rem">${s.name}</div>
+          <div style="font-weight:700;color:var(--text);font-size:1rem">${s.name}</div>
           <div style="color:var(--text2);font-size:.78rem;margin-top:.2rem">⏰ ${s.time} · ${s.duration}min</div>
         </div>
         <div style="display:flex;gap:.3rem">
@@ -613,6 +641,11 @@ async function initAdmin() {
 
 // Check auth on load
 window.addEventListener("DOMContentLoaded", ()=>{
+  initTheme();
+  lucide.createIcons();
+
+  document.getElementById("theme-toggle")?.addEventListener("click", toggleTheme);
+
   if (sessionStorage.getItem("ff_auth")==="1") {
     document.getElementById("auth-overlay").style.display = "none";
     document.getElementById("admin-app").style.display    = "block";

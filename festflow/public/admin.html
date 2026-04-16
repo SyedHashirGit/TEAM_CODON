@@ -1,11 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>FestFlow — Command Centre</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><path d='M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20'/><path d='M2 12h20'/></svg>">
 <link rel="stylesheet" href="css/styles.css"/>
 <link rel="stylesheet" href="css/admin.css"/>
+<script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
 
@@ -53,7 +55,13 @@
   </div>
   <div style="display:flex;align-items:center;gap:.75rem;margin-left:auto">
     <div class="nav-badge"><div class="status-dot"></div>AI Agent Online</div>
-    <button class="btn btn-secondary btn-sm" onclick="doLogout()">🔓 Logout</button>
+    <button class="theme-toggle" id="theme-toggle" title="Toggle Theme" style="margin: 0 0.5rem">
+      <i data-lucide="sun" id="sun-icon"></i>
+      <i data-lucide="moon" id="moon-icon" style="display:none"></i>
+    </button>
+    <button class="btn btn-secondary btn-sm" onclick="doLogout()">
+      <i data-lucide="log-out" style="width:14px;height:14px"></i> Logout
+    </button>
   </div>
 </nav>
 
@@ -108,7 +116,7 @@
           </div>
           <div class="ai-result" id="ai-result">
             <div class="ai-result-header">🧠 AI Decision</div>
-            <div style="margin-bottom:.5rem;font-size:.82rem;color:var(--text2)">Replacement: <strong style="color:#fff" id="ai-replacement-name"></strong></div>
+            <div style="margin-bottom:.5rem;font-size:.82rem;color:var(--text2)">Replacement: <strong style="color:var(--text)" id="ai-replacement-name"></strong></div>
             <div class="ai-result-reasoning" id="ai-reasoning"></div>
             <div class="ai-result-confidence">
               <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--text3)"><span>Confidence</span><span id="confidence-pct">—</span></div>
@@ -161,7 +169,7 @@
   <div class="section-header">
     <div>
       <h2>👥 Participants</h2>
-      <p><span id="par-count">—</span> registered for TechFest 2025</p>
+      <p><span id="par-count">—</span> registered for TechFest 2026</p>
     </div>
     <button class="btn btn-primary btn-sm" onclick="openAddParticipant()">➕ Add Participant</button>
   </div>
@@ -175,7 +183,7 @@
   <div class="section-header">
     <div>
       <h2>📅 Events & Sessions</h2>
-      <p>Manage all sessions for TechFest 2025</p>
+      <p>Manage all sessions for TechFest 2026</p>
     </div>
     <button class="btn btn-primary btn-sm" onclick="openAddSession()">➕ Add Session</button>
   </div>
