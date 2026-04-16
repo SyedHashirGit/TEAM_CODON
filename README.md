@@ -46,7 +46,21 @@ git push origin main
 
 ## Problem Statement
 
-[Write your problem statement here]
+FestFlow: AI Agent for Event and Fest Management
+Problem Statement:
+College fests and events are a coordination nightmare. Volunteers get assigned over WhatsApp,
+last-minute dropouts throw entire schedules off, and coordinators spend more time firefighting
+logistics than actually running the event. There is no single system that handles registrations,
+volunteer coordination, and real-time rescheduling together.
+Description:
+Build an AI agent that handles the operational side of a college event end to end. The agent takes in
+participant registrations, maps volunteer availability and skills to event slots, and sends each
+volunteer a personalized briefing before the event. When someone drops out or a session
+overflows, the agent detects the gap, reshuffles assignments from a waitlist, notifies affected
+volunteers, and updates the master schedule without waiting for a human to intervene. After the
+event, it compiles attendance, collects feedback, and generates a summary report for the organizing
+committee. The scope for a hackathon build should focus on one of these phases and do it well
+rather than attempting all of them.
 
 ---
 
