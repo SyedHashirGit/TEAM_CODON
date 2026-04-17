@@ -115,9 +115,13 @@ window.submitRegistration = async function(e) {
 };
 
 window.resetRegForm = function() {
+  const btn = document.getElementById("reg-submit");
+  if (btn) btn.disabled = false;
+  
   document.getElementById("reg-form-wrap").style.display = "block";
   document.getElementById("reg-success").style.display   = "none";
   document.querySelectorAll(".checkbox-chip.checked").forEach(c=>c.classList.remove("checked"));
+  document.querySelectorAll(".checkbox-chip input[type='checkbox']").forEach(i=>i.checked = false);
   document.querySelector("form")?.reset();
   setRole("participant");
 };

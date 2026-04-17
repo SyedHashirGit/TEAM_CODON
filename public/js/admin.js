@@ -168,12 +168,12 @@ async function loadDashboard() {
         }).join("")
       : `<span class="text-muted text-sm">No assignments</span>`;
 
-    return `<tr class="${isShort ? 'problem' : ''}">
+    return `<tr class="${isShort ? 'problem' : ''}" style="cursor:pointer" onclick="openEventDetail('${s.id}')">
       <td><div class="session-name">${s.name}</div><div class="session-time">⏰ ${s.time} · ${s.duration}min</div></td>
       <td><div class="session-venue">📍 ${s.venue}</div></td>
       <td>${badge} <span style="color:var(--text3);font-size:.72rem;margin-left:.3rem">${s.coverage}/${s.maxVol}</span></td>
       <td><div class="vol-chips">${volHtml}</div></td>
-      <td><button class="btn btn-sm btn-secondary" onclick="showAdminPage('events')">View</button></td>
+      <td><button class="btn btn-sm btn-secondary" onclick="event.stopPropagation();openEventDetail('${s.id}')">View</button></td>
     </tr>`;
   }).join("");
 
@@ -349,7 +349,7 @@ async function loadVolunteers() {
           <span class="text-muted text-sm">${v.assignedSession?`📋 ${sesName}`:""}</span>
         </div>
         <div style="margin-top:.6rem;font-size:.72rem;color:var(--text3)">📧 ${v.email||""} · 📱 ${v.phone||""}</div>
-        <div style="display:flex;gap:.4rem;margin-top:.8rem">
+        <div class="vol-card-actions">
           ${v.status === "waitlist" ? `<button class="btn btn-sm btn-secondary" onclick="openRejectVolunteer('${v.id}','${v.name.replace(/'/g,"\\'")}','${(v.email||'').replace(/'/g,"\\'")}')">🚫 Reject</button>` : ""}
           <button class="btn btn-secondary btn-sm" style="flex:1;justify-content:center" onclick="openEditVolunteer('${v.id}')">✏️ Edit</button>
           <button class="btn btn-danger btn-sm" onclick="deleteVolunteer('${v.id}','${v.name.replace(/'/g,"\\'")}')">🗑️</button>
@@ -697,39 +697,138 @@ document.addEventListener("click", e=>{
   if (chip) chip.classList.toggle("checked");
 }, true);
 
+// ── Event Detail Modal ─────────────────────────────────────────────────────────
+window.openEventDetail = async function(sessionId) {
+  const [session, allAssignments, allVolunteers, allParticipants] = await Promise.all([
+    fb.get(`sessions/${sessionId}`),
+    fb.get('assignments'),
+    getAllVolunteers(),
+    getAllParticipants()
+  ]);
+  if (!session) return;
+
+  // Header
+  document.getElementById('edm-title').textContent = session.name;
+  document.getElementById('edm-meta').textContent =
+    `⏰ ${session.time} · ${session.duration}min  ·  📍 ${session.venue}`;
+
+  // Info tab
+  const cvg = Object.values(allAssignments||{}).filter(a=>a.sessionId===sessionId).length;
+  const statusColor = cvg >= session.maxVol ? 'var(--green)' : cvg < session.minVol ? 'var(--red)' : 'var(--amber)';
+  document.getElementById('edm-info-body').innerHTML = `
+    <div class="edm-info-cell">
+      <div class="edm-info-label">⏰ Time</div>
+      <div class="edm-info-value">${session.time}</div>
+    </div>
+    <div class="edm-info-cell">
+      <div class="edm-info-label">⌛ Duration</div>
+      <div class="edm-info-value">${session.duration} min</div>
+    </div>
+    <div class="edm-info-cell">
+      <div class="edm-info-label">📍 Venue</div>
+      <div class="edm-info-value">${session.venue}</div>
+    </div>
+    <div class="edm-info-cell">
+      <div class="edm-info-label">📊 Volunteer Coverage</div>
+      <div class="edm-info-value" style="color:${statusColor}">${cvg} / ${session.maxVol} <span style="font-size:.75rem;font-weight:400;color:var(--text3)">(min ${session.minVol})</span></div>
+    </div>
+    <div class="edm-info-cell full-width">
+      <div class="edm-info-label">🎯 Required Skills</div>
+      <div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.4rem">
+        ${(session.requiredSkills||[]).map(sk=>`<span class="skill-tag" style="font-size:.82rem">${sk}</span>`).join('') || '<span style="color:var(--text3);font-size:.85rem">None specified</span>'}
+      </div>
+    </div>
+  `;
+
+  // Volunteers tab
+  const sessionAssignments = Object.values(allAssignments||{}).filter(a=>a.sessionId===sessionId);
+  const assignedVolIds = new Set(sessionAssignments.map(a=>a.volunteerId));
+  const assignedVols = allVolunteers.filter(v=>assignedVolIds.has(v.id));
+  document.getElementById('edm-vol-count').textContent = assignedVols.length;
+
+  document.getElementById('edm-vols-body').innerHTML = assignedVols.length
+    ? assignedVols.map(v => {
+        const assignment = sessionAssignments.find(a=>a.volunteerId===v.id);
+        const av = avatarColor(v.name);
+        const isReplacement = assignment?.isReplacement;
+        return `<div class="edm-person-row">
+          <div class="par-avatar ${av}" style="width:38px;height:38px;border-radius:9px;font-size:.85rem;flex-shrink:0">${initials(v.name)}</div>
+          <div class="edm-person-info">
+            <div class="edm-person-name">${v.name} ${isReplacement ? '<span style="font-size:.7rem;color:var(--amber)">🔄 Replacement</span>' : ''}</div>
+            <div class="edm-person-sub">${assignment?.role||''} · ${v.email||''}</div>
+          </div>
+          ${statusBadge(v.status)}
+        </div>`;
+      }).join('')
+    : `<div class="edm-empty"><span>🙋</span>No volunteers assigned yet</div>`;
+
+  // Participants tab
+  const sessionParts = allParticipants.filter(p=>(p.events||[]).includes(sessionId));
+  document.getElementById('edm-part-count').textContent = sessionParts.length;
+
+  document.getElementById('edm-parts-body').innerHTML = sessionParts.length
+    ? sessionParts.map(p => {
+        const av = avatarColor(p.name);
+        return `<div class="edm-person-row">
+          <div class="par-avatar ${av}" style="width:38px;height:38px;border-radius:9px;font-size:.85rem;flex-shrink:0">${initials(p.name)}</div>
+          <div class="edm-person-info">
+            <div class="edm-person-name">${p.name}</div>
+            <div class="edm-person-sub">${p.college||''} · ${p.email||''}</div>
+          </div>
+        </div>`;
+      }).join('')
+    : `<div class="edm-empty"><span>👥</span>No participants registered for this event</div>`;
+
+  // Reset to Info tab
+  switchEdmTab('info');
+  document.getElementById('event-detail-modal').style.display = 'flex';
+};
+
+window.switchEdmTab = function(tab) {
+  ['info','vols','parts'].forEach(t => {
+    document.getElementById(`edm-tab-${t}`).style.display = t === tab ? 'block' : 'none';
+    document.querySelector(`.edm-tab[data-tab="${t}"]`).classList.toggle('active', t === tab);
+  });
+};
+
+window.closeEventDetailModal = function(e) {
+  if (e.target.id === 'event-detail-modal')
+    document.getElementById('event-detail-modal').style.display = 'none';
+};
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 async function initAdmin() {
-  const loader = document.getElementById("loader");
+  const loader = document.getElementById('loader');
   try {
-    const existing = await fb.get("sessions");
+    const existing = await fb.get('sessions');
     if (!existing || Object.keys(existing).length===0) {
       await seedDatabase();
     }
   } catch(e) { console.error(e); }
 
   setTimeout(()=>{
-    loader.style.opacity="0"; loader.style.transition="opacity .4s";
-    setTimeout(()=>{ loader.style.display="none"; showAdminPage("dashboard"); },400);
+    loader.style.opacity='0'; loader.style.transition='opacity .4s';
+    setTimeout(()=>{ loader.style.display='none'; showAdminPage('dashboard'); },400);
   },1200);
 }
 
 // Check auth on load
-window.addEventListener("DOMContentLoaded", ()=>{
+window.addEventListener('DOMContentLoaded', ()=>{
   initTheme();
   lucide.createIcons();
 
-  document.getElementById("theme-toggle")?.addEventListener("click", toggleTheme);
+  document.getElementById('theme-toggle')?.addEventListener('click', toggleTheme);
 
-  if (sessionStorage.getItem("ff_auth")==="1") {
-    document.getElementById("auth-overlay").style.display = "none";
-    document.getElementById("admin-app").style.display    = "block";
+  if (sessionStorage.getItem('ff_auth')==='1') {
+    document.getElementById('auth-overlay').style.display = 'none';
+    document.getElementById('admin-app').style.display    = 'block';
     initAdmin();
   }
   // Enter key on auth
-  document.getElementById("auth-pass").addEventListener("keydown",e=>{
-    if(e.key==="Enter") doLogin();
+  document.getElementById('auth-pass').addEventListener('keydown',e=>{
+    if(e.key==='Enter') doLogin();
   });
-  document.getElementById("auth-user").addEventListener("keydown",e=>{
-    if(e.key==="Enter") doLogin();
+  document.getElementById('auth-user').addEventListener('keydown',e=>{
+    if(e.key==='Enter') doLogin();
   });
 });
