@@ -91,14 +91,13 @@ window.submitRegistration = async function(e) {
       toast("Registered!","Welcome to TechFest 2026 🎉","success");
     } else {
       const skills = [...document.querySelectorAll("#vol-skills .checkbox-chip.checked")].map(el=>el.dataset.value);
-      const availability = [...document.querySelectorAll("#vol-avail .checkbox-chip.checked")].map(el=>el.dataset.value);
       const year   = document.getElementById("vol-year").value;
       const branch = document.getElementById("vol-branch").value;
-      if (!skills.length || !availability.length) {
-        toast("Required","Please select at least one skill and one availability slot","warning");
+      if (!skills.length) {
+        toast("Required","Please select at least one skill","warning");
         btn.disabled=false; btn.textContent="🙋 Register as Volunteer"; return;
       }
-      const res = await registerVolunteer({ name, email, phone, college, year, branch, skills, availability });
+      const res = await registerVolunteer({ name, email, phone, college, year, branch, skills });
       document.getElementById("reg-form-wrap").style.display = "none";
       document.getElementById("reg-success").style.display   = "block";
       document.getElementById("reg-success-name").textContent = name;

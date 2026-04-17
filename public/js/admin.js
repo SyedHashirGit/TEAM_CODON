@@ -1,7 +1,7 @@
 import {
   fb, gemini, seedDatabase,
   registerParticipant, registerVolunteer,
-  triggerDropout, sendAllBriefings, rejectWaitlistVolunteer,
+  triggerDropout, sendAllBriefings, rejectWaitlistVolunteer, acceptAndAssignWaitlistVolunteer, reassignVolunteer,
   getMasterSchedule, getAllVolunteers, getAllParticipants,
   getNotifications, getAgentLog,
   getDashboardStats, markNotifRead, pushNotif, logAction, SEED
@@ -350,7 +350,10 @@ async function loadVolunteers() {
         </div>
         <div style="margin-top:.6rem;font-size:.72rem;color:var(--text3)">📧 ${v.email||""} · 📱 ${v.phone||""}</div>
         <div class="vol-card-actions">
-          ${v.status === "waitlist" ? `<button class="btn btn-sm btn-secondary" onclick="openRejectVolunteer('${v.id}','${v.name.replace(/'/g,"\\'")}','${(v.email||'').replace(/'/g,"\\'")}')">🚫 Reject</button>` : ""}
+          ${v.status === "waitlist" ? `
+            <button class="btn btn-sm btn-green" onclick="openAcceptAssignModal('${v.id}','${v.name.replace(/'/g,"\\'")}','${(v.email||'').replace(/'/g,"\\'")}')">✅ Accept</button>
+            <button class="btn btn-sm btn-secondary" onclick="openRejectVolunteer('${v.id}','${v.name.replace(/'/g,"\\'")}','${(v.email||'').replace(/'/g,"\\'")}')">🚫 Reject</button>
+          ` : ""}
           <button class="btn btn-secondary btn-sm" style="flex:1;justify-content:center" onclick="openEditVolunteer('${v.id}')">✏️ Edit</button>
           <button class="btn btn-danger btn-sm" onclick="deleteVolunteer('${v.id}','${v.name.replace(/'/g,"\\'")}')">🗑️</button>
         </div>
@@ -381,12 +384,12 @@ window.openAddVolunteer = function() {
   document.getElementById("ve-year").value = "";
   document.getElementById("ve-branch").value = "";
   document.getElementById("ve-status").value = "waitlist";
-  document.querySelectorAll("#ve-skills .checkbox-chip, #ve-avail .checkbox-chip").forEach(c=>c.classList.remove("checked"));
+  document.querySelectorAll("#ve-skills .checkbox-chip").forEach(c=>c.classList.remove("checked"));
   document.getElementById("vol-modal").style.display = "flex";
 };
 
 window.openEditVolunteer = async function(id) {
-  const v = await fb.get(`volunteers/${id}`);
+  const [v, sessions] = await Promise.all([fb.get(`volunteers/${id}`), fb.get('sessions')]);
   if (!v) return;
   document.getElementById("vol-modal-title").textContent = "Edit Volunteer";
   document.getElementById("vol-edit-id").value  = id;
@@ -399,9 +402,9 @@ window.openEditVolunteer = async function(id) {
   document.querySelectorAll("#ve-skills .checkbox-chip").forEach(c=>{
     c.classList.toggle("checked",(v.skills||[]).includes(c.dataset.value));
   });
-  document.querySelectorAll("#ve-avail .checkbox-chip").forEach(c=>{
-    c.classList.toggle("checked",(v.availability||[]).includes(c.dataset.value));
-  });
+  const sesHtml = `<option value="">None</option>` + Object.values(sessions||{}).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  document.getElementById("ve-session").innerHTML = sesHtml;
+  document.getElementById("ve-session").value = v.assignedSession || "";
   document.getElementById("vol-modal").style.display = "flex";
 };
 
@@ -409,7 +412,6 @@ window.saveVolunteer = async function(e) {
   e.preventDefault();
   const id   = document.getElementById("vol-edit-id").value;
   const skills = [...document.querySelectorAll("#ve-skills .checkbox-chip.checked")].map(c=>c.dataset.value);
-  const avail  = [...document.querySelectorAll("#ve-avail .checkbox-chip.checked")].map(c=>c.dataset.value);
   const data = {
     name:  document.getElementById("ve-name").value,
     email: document.getElementById("ve-email").value,
@@ -417,16 +419,24 @@ window.saveVolunteer = async function(e) {
     year:  document.getElementById("ve-year").value,
     branch:document.getElementById("ve-branch").value,
     status:document.getElementById("ve-status").value,
-    skills, availability:avail
+    skills
   };
+  const newSession = document.getElementById("ve-session").value || null;
   if (id) {
+    const oldV = await fb.get(`volunteers/${id}`);
     await fb.patch(`volunteers/${id}`, data);
+    if (oldV.assignedSession !== newSession) {
+       await reassignVolunteer(id, newSession);
+    }
     await logAction("VOLUNTEER_EDITED_BY_ADMIN", { volunteerId: id, name: data.name });
     await pushNotif("admin", "Admin", "admin_edit", `Admin edited volunteer ${data.name}`);
     toast("Volunteer Updated","Changes saved","success");
   } else {
     const newId = `vol-${Date.now()}`;
-    await fb.set(`volunteers/${newId}`, { id:newId, ...data, assignedSession:null, registeredAt:new Date().toISOString() });
+    await fb.set(`volunteers/${newId}`, { id:newId, ...data, assignedSession:newSession, registeredAt:new Date().toISOString() });
+    if (newSession) {
+       await reassignVolunteer(newId, newSession);
+    }
     await logAction("VOLUNTEER_CREATED_BY_ADMIN", { volunteerId: newId, name: data.name });
     await pushNotif("admin", "Admin", "admin_edit", `Admin created volunteer ${data.name}`);
     toast("Volunteer Added","New volunteer created","success");
@@ -485,6 +495,37 @@ window.confirmRejectAction = async function() {
     toast("Error", e.message, "error");
   }
   btn.disabled = false; btn.textContent = "Reject & Notify";
+};
+
+window.openAcceptAssignModal = async function(id, name, email) {
+  const sessions = await fb.get('sessions');
+  const sesHtml = `<option value="auto">🤖 Auto-Assign via AI</option>` + 
+    Object.values(sessions||{}).filter(s=>s.status==='active').map(s=>`<option value="${s.id}">${s.name} (${s.time})</option>`).join('');
+  document.getElementById("accept-session-select").innerHTML = sesHtml;
+  document.getElementById("accept-vol-id").value = id;
+  document.getElementById("accept-vol-name").value = name;
+  document.getElementById("accept-vol-email").value = email;
+  document.getElementById("accept-assign-modal").style.display = 'flex';
+};
+
+window.confirmAcceptAssign = async function() {
+  const btn = document.getElementById("confirm-accept-btn");
+  btn.disabled = true; btn.textContent = "Processing...";
+  const id = document.getElementById("accept-vol-id").value;
+  const name = document.getElementById("accept-vol-name").value;
+  const email = document.getElementById("accept-vol-email").value;
+  const targetSession = document.getElementById("accept-session-select").value;
+
+  try {
+    await acceptAndAssignWaitlistVolunteer(id, name, email, targetSession);
+    toast("Accepted", `${name} has been processed.`, "success");
+    document.getElementById("accept-assign-modal").style.display = 'none';
+    loadVolunteers();
+    setTimeout(loadDashboard, 1000);
+  } catch(e) {
+    toast("Error", e.message, "error");
+  }
+  btn.disabled = false; btn.textContent = "Confirm Accept";
 };
 
 // ── Participants page ─────────────────────────────────────────────────────────

@@ -1197,6 +1197,7 @@ select option {
 
 .vol-card-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: .4rem;
   margin-top: auto;
   padding-top: .8rem;

@@ -289,9 +289,8 @@ export async function registerVolunteer(data) {
 
   const needSessions = sessionArr.filter(s => {
     const count     = assignMap[s.id]||0;
-    const available = data.availability.includes(s.time);
     const skilled   = s.requiredSkills.some(sk => data.skills.includes(sk));
-    return count < s.maxVol && available && skilled;
+    return count < s.maxVol && skilled;
   });
 
   let assignedSession = null;
@@ -347,6 +346,89 @@ export async function rejectWaitlistVolunteer(id, name, email, reason) {
   return { success: true };
 }
 
+// ── CORE: Accept waitlisted volunteer ─────────────────────────────────────────
+export async function acceptAndAssignWaitlistVolunteer(id, name, email, targetSessionId) {
+  const volunteer = await fb.get(`volunteers/${id}`);
+  if (!volunteer) throw new Error("Volunteer not found");
+  
+  volunteer.status = "active";
+  await fb.patch(`volunteers/${id}`, { status: "active" });
+
+  await logAction("VOLUNTEER_ACCEPTED", { volunteerId: id, name });
+  const msg = `Hi ${name}, you've been moved from the waitlist to active status! We will notify you once you're assigned to a session.`;
+  await pushNotif(id, name, "registration_confirmed", msg);
+  await sendEmailNotification({ name, email, type: "registration_confirmed", message: msg });
+
+  const sessions    = await fb.get("sessions");
+  const assignments = await fb.get("assignments");
+
+  if (targetSessionId === "auto") {
+    const sessionArr = Object.values(sessions||{});
+    const assignMap  = {};
+    Object.values(assignments||{}).forEach(a => {
+      assignMap[a.sessionId] = (assignMap[a.sessionId]||0)+1;
+    });
+
+    const needSessions = sessionArr.filter(s => {
+      const count     = assignMap[s.id]||0;
+      const skilled   = s.requiredSkills.some(sk => volunteer.skills.includes(sk));
+      return count < s.maxVol && skilled;
+    });
+
+    if (needSessions.length > 0) {
+      const ai = await aiAssignNewVolunteer(volunteer, needSessions, assignments);
+      if (ai.sessionId) {
+        await executeAssignment(id, name, email, volunteer, ai.sessionId, ai.role, sessions[ai.sessionId], ai.reasoning);
+      }
+    }
+  } else if (targetSessionId && sessions[targetSessionId]) {
+    await executeAssignment(id, name, email, volunteer, targetSessionId, "Support", sessions[targetSessionId], "Admin manually assigned from waitlist.");
+  }
+  
+  return { success: true };
+}
+
+async function executeAssignment(id, name, email, volunteer, sessionId, role, session, reasoning) {
+  const aKey = `asgn-${Date.now()}`;
+  await fb.set(`assignments/${aKey}`, { sessionId:sessionId, volunteerId:id, role:role });
+  await fb.patch(`volunteers/${id}`, { assignedSession:sessionId });
+  
+  const briefing = await aiGenerateBriefing(volunteer, session, role);
+  await pushNotif(id, name, "assignment_briefing", briefing,
+    { sessionId:sessionId, sessionName:session.name, role:role, emailSent:true });
+  await sendBriefingEmail({ name, email, role:role, time:session.time, venue:session.venue, sessionName:session.name, eventName:"TechFest 2026", emailBody:briefing });
+  await logAction("VOLUNTEER_ASSIGNED", { volunteerId:id, sessionId:sessionId, role:role, reasoning });
+}
+
+// ── CORE: Reassign Volunteer ──────────────────────────────────────────────────
+export async function reassignVolunteer(volunteerId, newSessionId) {
+  const volunteer = await fb.get(`volunteers/${volunteerId}`);
+  if (!volunteer) return;
+
+  const assignments = await fb.get("assignments");
+  for (const [key, a] of Object.entries(assignments||{})) {
+    if (a.volunteerId === volunteerId) {
+      await fb.del(`assignments/${key}`);
+    }
+  }
+
+  if (newSessionId) {
+    const sessions = await fb.get("sessions");
+    const session = sessions[newSessionId];
+    if (session) {
+      const aKey = `asgn-${Date.now()}`;
+      await fb.set(`assignments/${aKey}`, { sessionId:newSessionId, volunteerId, role:"Support" });
+      await fb.patch(`volunteers/${volunteerId}`, { assignedSession: newSessionId, status: "active" });
+      
+      const msg = `Your schedule has been updated! You are now assigned to "${session.name}" at ${session.time}. Please check your dashboard for details.`;
+      await pushNotif(volunteerId, volunteer.name, "new_assignment", msg, { sessionId:newSessionId, sessionName:session.name });
+      await logAction("VOLUNTEER_REASSIGNED", { volunteerId, newSessionId });
+    }
+  } else {
+    await logAction("VOLUNTEER_UNASSIGNED", { volunteerId });
+  }
+}
+
 // ── CORE: Trigger dropout ─────────────────────────────────────────────────────
 export async function triggerDropout(volunteerId) {
   await logAction("DROPOUT_DETECTED", { volunteerId });
@@ -370,7 +452,6 @@ export async function triggerDropout(volunteerId) {
   const allVols = await fb.get("volunteers");
   const candidates = Object.values(allVols||{}).filter(v =>
     v.status === "waitlist" && !v.assignedSession &&
-    v.availability.includes(session.time) &&
     session.requiredSkills.some(sk => v.skills.includes(sk))
   );
 
